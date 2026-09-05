@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/*
+ * The Netaville palette, shared with the student mobile app
+ * (netaville/src/theme.ts). Nothing in the panel hardcodes a colour —
+ * it comes from here as a Tailwind token (bg-surface, text-ink, …).
+ */
+@theme {
+  --color-page: #f3f1ea;
+  --color-surface: #ffffff;
+  --color-line: #eee3cd;
+
+  --color-ink: #241f6b;
+  --color-muted: #7c7266;
+  --color-dim: #ada593;
+  --color-on-brand: #ffffff;
+
+  --color-brand: #2b1fc9;
+  --color-brand-tint: #e7e4fb;
+  --color-brand-edge: #cfcbf0;
+
+  --color-coral: #f26a57;
+  --color-coral-tint: #fbe1db;
+  --color-coral-edge: #f5c7bc;
+  --color-coral-ink: #b24b39;
+
+  --color-gold: #f5b301;
+  --color-gold-tint: #fdefc4;
+  --color-gold-edge: #f3db8a;
+  --color-gold-ink: #8a7e63;
+
+  --color-cyan: #17b9df;
+  --color-cyan-tint: #d8f2fb;
+  --color-cyan-edge: #a6e4f2;
+  --color-cyan-ink: #1481a0;
+
+  --color-success: #3e9b6e;
+  --color-success-tint: #e0f1e8;
+  --color-success-edge: #b7ddc9;
+
+  --radius-card: 16px;
+  --radius-control: 12px;
+
+  --shadow-card:
+    0 1px 2px rgb(36 31 107 / 0.04), 0 8px 24px rgb(36 31 107 / 0.05);
+  --shadow-pop: 0 12px 40px rgb(36 31 107 / 0.14);
+
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Slim scrollbars, so long tables don't get a chunky grey gutter. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+/* The TV route paints its own dark ground edge to edge. */
+body:has(.screen-stage) {
+  background: #0b0a1f;
+}
+
+/*
+ * The TV slide transition. Driven by CSS rather than React state so the
+ * rotation never re-renders mid-fade; the duration is set per slide inline.
+ */
+@keyframes screen-slide {
+  0% {
+    opacity: 0;
+    transform: scale(1.035);
+  }
+  6% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  93% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+}
+
+.screen-slide {
+  animation-name: screen-slide;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-slide {
+    animation-name: none;
+  }
+}

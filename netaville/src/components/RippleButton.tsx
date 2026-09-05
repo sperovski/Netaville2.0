@@ -26,6 +26,10 @@ type Props = {
   size?: 'md' | 'sm';
   background?: string;
   rippleColor?: string;
+  /** Overrides the on-brand white label, e.g. for a light-surface button. */
+  labelColor?: string;
+  /** The darkening sheen reads as grime on a light surface — turn it off there. */
+  sheen?: boolean;
   style?: ViewStyle;
 };
 
@@ -38,6 +42,8 @@ export function RippleButton({
   size = 'md',
   background = colors.brandBlue,
   rippleColor = 'rgba(1, 190, 254, 0.6)',
+  labelColor,
+  sheen = true,
   style,
 }: Props) {
   const press = useRef(new Animated.Value(0)).current;
@@ -100,23 +106,29 @@ export function RippleButton({
         />
 
         {/* the darkening sheen from the original's .gradient layer */}
-        <View pointerEvents="none" style={styles.sheen}>
-          <Svg width="100%" height="100%">
-            <Defs>
-              <LinearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor="#000" stopOpacity={0} />
-                <Stop offset="0.5" stopColor="#000" stopOpacity={0} />
-                <Stop offset="1" stopColor="#000" stopOpacity={0.3} />
-              </LinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill="url(#sheen)" />
-          </Svg>
-        </View>
+        {sheen ? (
+          <View pointerEvents="none" style={styles.sheen}>
+            <Svg width="100%" height="100%">
+              <Defs>
+                <LinearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor="#000" stopOpacity={0} />
+                  <Stop offset="0.5" stopColor="#000" stopOpacity={0} />
+                  <Stop offset="1" stopColor="#000" stopOpacity={0.3} />
+                </LinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100%" height="100%" fill="url(#sheen)" />
+            </Svg>
+          </View>
+        ) : null}
 
         <View style={styles.inner}>
           {icon}
           <Animated.Text
-            style={[styles.label, size === 'sm' ? styles.labelSm : null]}
+            style={[
+              styles.label,
+              size === 'sm' ? styles.labelSm : null,
+              labelColor === undefined ? null : {color: labelColor},
+            ]}
             numberOfLines={1}>
             {label}
           </Animated.Text>

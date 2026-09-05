@@ -15,13 +15,15 @@ export function StatStrip({stats}: {stats: Stat[]}) {
   return (
     <View style={styles.strip}>
       {stats.map((stat, index) => (
-        <View key={stat.label} style={styles.cell}>
+        <View key={stat.label} style={[styles.cell, {flex: stat.flex ?? 1}]}>
           {index === 0 ? null : <View style={styles.rule} />}
-          <View style={[styles.stat, {flex: stat.flex ?? 1}]}>
+          <View style={styles.stat}>
             <Text style={styles.label}>{stat.label}</Text>
             <Text
               style={[styles.value, stat.tint === undefined ? null : {color: stat.tint}]}
-              numberOfLines={2}>
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}>
               {stat.value}
             </Text>
           </View>
@@ -41,9 +43,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingVertical: spacing.lg,
   },
-  cell: {flexDirection: 'row', flex: 1},
+  cell: {flexDirection: 'row'},
   rule: {width: 1, backgroundColor: colors.divider},
   stat: {
+    // Fills the cell, so the column width comes from the cell's flex alone.
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,

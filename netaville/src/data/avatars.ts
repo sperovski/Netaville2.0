@@ -21,12 +21,21 @@ export type AvatarSeed = keyof typeof avatarSvgs;
 
 export const avatarSeeds = Object.keys(avatarSvgs) as AvatarSeed[];
 
-/** Picks a stable avatar for any string (event id, name, …). */
-export function avatarFor(key: string): string {
+/** The exact face for a seed the user chose themselves. */
+export function avatarBySeed(seed: AvatarSeed): string {
+  return avatarSvgs[seed];
+}
+
+/** The seed a string maps to — same key, same face, every time. */
+export function seedFor(key: string): AvatarSeed {
   let hash = 0;
   for (let index = 0; index < key.length; index += 1) {
     hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
   }
-  const seed = avatarSeeds[hash % avatarSeeds.length] ?? avatarSeeds[0]!;
-  return avatarSvgs[seed];
+  return avatarSeeds[hash % avatarSeeds.length] ?? avatarSeeds[0]!;
+}
+
+/** Picks a stable avatar for any string (event id, name, …). */
+export function avatarFor(key: string): string {
+  return avatarSvgs[seedFor(key)];
 }

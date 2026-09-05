@@ -25,7 +25,7 @@ export default function NotificationsScreen() {
 
       <View style={styles.section}>
         {notifications.length === 0 ? (
-          <Text style={typography.body}>You&apos;re all caught up — no notifications yet.</Text>
+          <Text style={typography.body}>You&apos;re all caught up. No notifications yet.</Text>
         ) : (
           <>
             {notifications.map(notification => (

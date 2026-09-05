@@ -1,10 +1,19 @@
 import {StyleSheet, Text, View} from 'react-native';
+import {AppIcon} from '@/components/AppIcon';
 import {Chip} from '@/components/Chip';
 import {Screen} from '@/components/Screen';
 import {SectionLabel} from '@/components/SectionLabel';
 import {useLoyalty} from '@/context/loyalty';
 import {menu, type MenuItem} from '@/data/loyalty';
+import type {AppIconName} from '@/data/appIcons';
 import {colors, fonts, radii, spacing, type as typography} from '@/theme';
+
+/** Each category wears the icon drawn for it. */
+const categoryIcons: Record<string, AppIconName> = {
+  espresso: 'coffeeBeans',
+  specialty: 'specialty',
+  other: 'notCoffee',
+};
 
 function Row({item, isStudent}: {item: MenuItem; isStudent: boolean}) {
   const price = isStudent ? item.studentPrice : item.price;
@@ -59,12 +68,21 @@ export default function MenuScreen() {
 
       {menu.map(category => (
         <View key={category.id} style={styles.section}>
-          <SectionLabel tone={colors.gold}>{category.title}</SectionLabel>
+          <SectionLabel
+            icon={
+              categoryIcons[category.id] === undefined ? undefined : (
+                <AppIcon
+                  name={categoryIcons[category.id]!}
+                  color={colors.brandBlue}
+                  size={16}
+                />
+              )
+            }>
+            {category.title}
+          </SectionLabel>
           <View style={styles.card}>
             {category.items.map((item, index) => (
-              <View
-                key={item.id}
-                style={index === 0 ? null : styles.divided}>
+              <View key={item.id} style={index === 0 ? null : styles.divided}>
                 <Row item={item} isStudent={isStudent} />
               </View>
             ))}
@@ -83,7 +101,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   toggleRow: {flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.md},
-  section: {paddingHorizontal: spacing.xl, gap: spacing.md, paddingBottom: spacing.xl},
+  section: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,

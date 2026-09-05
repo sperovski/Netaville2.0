@@ -89,7 +89,7 @@ export default function CardScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.coral}>Rewards wallet</SectionLabel>
+        <SectionLabel>Rewards wallet</SectionLabel>
         <View style={[styles.card, styles.wallet]}>
           <BrandMotif
             name="traces"
@@ -128,7 +128,7 @@ export default function CardScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={tier.color}>{`${tier.name} tier`}</SectionLabel>
+        <SectionLabel>{`${tier.name} tier`}</SectionLabel>
         <View style={styles.card}>
           <View style={styles.tierHead}>
             <TierMedal tier={tier.name} size={30} />
@@ -147,14 +147,14 @@ export default function CardScreen() {
           />
           <Text style={styles.tierText}>
             {nextTier === null
-              ? 'Top tier — nothing left to climb.'
+              ? 'Top tier. Nothing left to climb.'
               : `${nextTier.threshold - lifetimeStamps} stamps to ${nextTier.name} · ${nextTier.perk}`}
           </Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.brandBlue}>Your stats</SectionLabel>
+        <SectionLabel>Your stats</SectionLabel>
         <StatStrip
           stats={[
             {label: 'Lifetime', value: String(lifetimeStamps), tint: colors.brandBlue},

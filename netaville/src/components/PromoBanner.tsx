@@ -1,12 +1,20 @@
 import {StyleSheet, Text, View} from 'react-native';
-import {Sparkles} from 'lucide-react-native';
+import LottieView from 'lottie-react-native';
 import type {Promotion} from '@/data/loyalty';
-import {colors, fonts, icon, radii, spacing} from '@/theme';
+import {colors, fonts, radii, spacing} from '@/theme';
+
+/** Swap this file for the exported LottieFiles JSON to change the animation. */
+const promoAnimation = require('../../assets/lottie/double-stamps.json');
 
 export function PromoBanner({promotion}: {promotion: Promotion}) {
   return (
     <View style={styles.banner}>
-      <Sparkles size={20} strokeWidth={icon.strokeWidth} color={colors.goldText} />
+      <LottieView
+        source={promoAnimation}
+        autoPlay
+        loop
+        style={styles.animation}
+      />
       <View style={styles.body}>
         <Text style={styles.title}>{promotion.title}</Text>
         <Text style={styles.description}>{promotion.description}</Text>
@@ -26,6 +34,7 @@ const styles = StyleSheet.create({
     borderColor: colors.goldCardBorder,
     padding: spacing.lg,
   },
+  animation: {width: 40, height: 40},
   body: {flex: 1, gap: 2},
   title: {
     fontFamily: fonts.bold,

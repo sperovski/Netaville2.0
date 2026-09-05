@@ -18,6 +18,12 @@ export const colors = {
   blueTintBg: '#E7E4FB',
   blueTintBorder: '#CFCBF0',
 
+  /** The featured "next up" card — the brand violet, one step softer. */
+  featureBg: '#EFECFC',
+  featureBorder: '#D2CCF2',
+  featureRay: '#2B1FC9',
+  featureText: '#5B54A6',
+
   coral: '#F26A57',
   coralTintBg: '#FBE1DB',
   coralTintBorder: '#F5C7BC',

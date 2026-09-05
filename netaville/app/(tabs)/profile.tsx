@@ -8,6 +8,7 @@ import {
   Info,
   LockKeyhole,
   LogOut,
+  Pencil,
   Trophy,
   Users,
 } from 'lucide-react-native';
@@ -16,6 +17,7 @@ import {ListRow} from '@/components/ListRow';
 import {Screen} from '@/components/Screen';
 import {SectionLabel} from '@/components/SectionLabel';
 import {StatStrip} from '@/components/StatStrip';
+import {useAuth} from '@/context/auth';
 import {useLoyalty} from '@/context/loyalty';
 import {nextTierFor, tierFor} from '@/data/loyalty';
 import {colors, fonts, icon, radii, spacing, type as typography} from '@/theme';
@@ -24,6 +26,7 @@ const languages = ['EN', 'МК', 'SQ'] as const;
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const {user, avatarSeed, signOut} = useAuth();
   const {
     lifetimeStamps,
     coffeesRedeemed,
@@ -46,9 +49,24 @@ export default function ProfileScreen() {
   return (
     <Screen scroll>
       <View style={styles.header}>
-        <AvatarRing seedKey="stefan" tier={tier} progress={tierProgress} size={96} />
-        <Text style={[typography.h1, styles.name]}>Stefan P.</Text>
-        <Text style={typography.body}>Member since 2024</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Change your avatar"
+          onPress={() => router.push('/avatar')}
+          style={({pressed}) => (pressed ? styles.pressed : null)}>
+          <AvatarRing
+            seedKey={user?.id ?? 'stefan'}
+            tier={tier}
+            progress={tierProgress}
+            size={96}
+            seed={avatarSeed}
+          />
+          <View style={styles.editBadge}>
+            <Pencil size={12} strokeWidth={2.4} color={colors.textOnBrand} />
+          </View>
+        </Pressable>
+        <Text style={[typography.h1, styles.name]}>{user?.name ?? 'Your account'}</Text>
+        <Text style={typography.body}>{user?.email ?? 'Member since 2024'}</Text>
         <View style={styles.tierLine}>
           <Text style={[styles.tierName, {color: tier.color}]}>{tier.name}</Text>
           <View style={styles.tierDot} />
@@ -71,7 +89,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.brandBlue}>Account</SectionLabel>
+        <SectionLabel>Account</SectionLabel>
         <ListRow
           icon={<Users size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />}
           label="Friends"
@@ -91,7 +109,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.cyan}>Student discount</SectionLabel>
+        <SectionLabel>Student discount</SectionLabel>
         <View style={styles.toggleRow}>
           <GraduationCap size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
           <View style={styles.toggleBody}>
@@ -109,7 +127,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.gold}>Language</SectionLabel>
+        <SectionLabel>Language</SectionLabel>
         <View style={styles.languages}>
           {languages.map(candidate => {
             const active = candidate === language;
@@ -147,7 +165,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.coral}>App &amp; legal</SectionLabel>
+        <SectionLabel>App &amp; legal</SectionLabel>
         <ListRow
           icon={<Info size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />}
           label="About Netaville"
@@ -166,6 +184,7 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Pressable
           accessibilityRole="button"
+          onPress={() => void signOut()}
           style={({pressed}) => [styles.signOut, pressed ? styles.pressed : null]}>
           <LogOut size={19} strokeWidth={icon.strokeWidth} color={colors.danger} />
           <Text style={styles.signOutText}>Sign out</Text>
@@ -184,6 +203,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   name: {marginTop: spacing.md},
+  editBadge: {
+    position: 'absolute',
+    left: 6,
+    bottom: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.brandBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
   tierLine: {
     flexDirection: 'row',
     alignItems: 'center',

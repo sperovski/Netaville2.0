@@ -11,6 +11,9 @@ const sources = {
   card: 'card.svg',
   ranks: 'ranks.svg',
   calendar: 'calendar.svg',
+  coffeeBeans: 'coffee-beans.svg',
+  specialty: 'specialty.svg',
+  notCoffee: 'not coffee.svg',
 };
 
 const entries = Object.entries(sources).map(([name, file]) => {

@@ -10,6 +10,8 @@ const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ] as const;
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
 type Props = {
   event: NetavilleEvent;
   going: boolean;
@@ -26,14 +28,30 @@ export function EventCard({event, going, onPress, onToggleRsvp}: Props) {
       accessibilityRole="button"
       onPress={onPress}
       style={({pressed}) => [styles.card, pressed ? styles.pressed : null]}>
-      {/* date rail — gives the list a spine you can scan down */}
-      <View style={[styles.rail, today ? styles.railToday : null]}>
-        <Text style={[styles.day, today ? styles.dayToday : null]}>
-          {date.getDate()}
-        </Text>
-        <Text style={[styles.month, today ? styles.monthToday : null]}>
-          {MONTHS[date.getMonth()]}
-        </Text>
+      {/* date stub — a torn-off ticket, so the list has a spine you can scan */}
+      <View style={[styles.stub, today ? styles.stubToday : null]}>
+        <View style={[styles.stubBand, today ? styles.stubBandToday : null]}>
+          <Text style={styles.stubBandText}>
+            {today ? 'Today' : WEEKDAYS[date.getDay()]}
+          </Text>
+        </View>
+        <View style={styles.stubBody}>
+          <Text style={[styles.day, today ? styles.dayToday : null]}>
+            {date.getDate()}
+          </Text>
+          <Text style={[styles.month, today ? styles.monthToday : null]}>
+            {MONTHS[date.getMonth()]}
+          </Text>
+        </View>
+        {/* perforation down the tear edge */}
+        <View style={styles.perforation} pointerEvents="none">
+          {[0, 1, 2, 3, 4].map(dot => (
+            <View
+              key={dot}
+              style={[styles.perfDot, today ? styles.perfDotToday : null]}
+            />
+          ))}
+        </View>
       </View>
 
       <View style={styles.body}>
@@ -81,30 +99,64 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg - 2,
   },
-  rail: {
-    width: 46,
-    paddingVertical: spacing.sm,
+  stub: {
+    width: 52,
     borderRadius: radii.cardSm - 4,
-    backgroundColor: colors.blueTintBg,
+    borderWidth: 1,
+    borderColor: colors.blueTintBorder,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  stubToday: {borderColor: colors.coralTintBorder},
+  stubBand: {
+    backgroundColor: colors.brandBlue,
+    paddingVertical: 3,
     alignItems: 'center',
   },
-  railToday: {backgroundColor: colors.brandBlue},
+  stubBandToday: {backgroundColor: colors.coral},
+  stubBandText: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    color: colors.textOnBrand,
+  },
+  stubBody: {
+    paddingTop: 5,
+    paddingBottom: 7,
+    alignItems: 'center',
+    gap: 1,
+  },
+  perforation: {
+    position: 'absolute',
+    right: 3,
+    top: 22,
+    bottom: 5,
+    justifyContent: 'space-between',
+  },
+  perfDot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.blueTintBorder,
+  },
+  perfDotToday: {backgroundColor: colors.coralTintBorder},
   day: {
     fontFamily: fonts.extrabold,
-    fontSize: 19,
-    letterSpacing: -0.6,
-    color: colors.brandBlue,
+    fontSize: 21,
+    lineHeight: 24,
+    letterSpacing: -0.8,
+    color: colors.textInk,
   },
-  dayToday: {color: colors.textOnBrand},
+  dayToday: {color: colors.coralText},
   month: {
     fontFamily: fonts.bold,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontSize: 9.5,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: colors.brandBlue,
-    opacity: 0.75,
+    color: colors.textDim,
   },
-  monthToday: {color: colors.textOnBrand, opacity: 0.85},
+  monthToday: {color: colors.coralText, opacity: 0.8},
   body: {flex: 1, gap: spacing.sm},
   top: {
     flexDirection: 'row',

@@ -97,7 +97,7 @@ export default function EventsScreen() {
       </ScrollView>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.coral}>Next up</SectionLabel>
+        <SectionLabel>Next up</SectionLabel>
         <FeaturedEventCard
           event={featured}
           going={featuredGoing}
@@ -108,7 +108,7 @@ export default function EventsScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.brandBlue}>Upcoming</SectionLabel>
+        <SectionLabel>Upcoming</SectionLabel>
         <View style={styles.list}>
           {upcoming.map(event => (
             <EventCard

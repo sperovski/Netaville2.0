@@ -48,7 +48,7 @@ export default function RanksScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.brandBlue}>Everyone else</SectionLabel>
+        <SectionLabel>Everyone else</SectionLabel>
         <View style={styles.card}>
           {ordered.slice(3).map((entry, index) => (
             <View
@@ -79,7 +79,7 @@ export default function RanksScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.gold}>Tiers</SectionLabel>
+        <SectionLabel>Tiers</SectionLabel>
         <View style={styles.card}>
           {tiers.map((tier, index) => (
             <View key={tier.name} style={[styles.row, index === 0 ? null : styles.divided]}>

@@ -1,17 +1,14 @@
 /**
- * Cold-start work that has to finish before the app is usable: auth check,
- * remote config, and the first events fetch. All local for now — swap the
- * bodies for real calls and the splash timing keeps working.
+ * Cold-start work that has to finish before the app is usable: remote config
+ * and the first events fetch. Still local — swap the bodies for real calls and
+ * the splash timing keeps working. The session lookup lives in AuthProvider
+ * (src/context/auth.tsx); the splash waits on that separately.
  */
 export async function bootstrapApp(): Promise<void> {
-  await Promise.all([checkAuth(), loadConfig(), prefetchEvents()]);
+  await Promise.all([loadConfig(), prefetchEvents()]);
 }
 
 const settle = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
-
-async function checkAuth(): Promise<void> {
-  await settle(180);
-}
 
 async function loadConfig(): Promise<void> {
   await settle(240);

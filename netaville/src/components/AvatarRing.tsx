@@ -2,6 +2,7 @@ import {StyleSheet, View} from 'react-native';
 import Svg, {Circle, G} from 'react-native-svg';
 import {Avatar} from './Avatar';
 import {TierMedal} from './TierMedal';
+import type {AvatarSeed} from '@/data/avatars';
 import type {Tier} from '@/data/loyalty';
 import {colors} from '@/theme';
 
@@ -11,6 +12,8 @@ type Props = {
   /** Progress towards the next tier, 0–1. */
   progress: number;
   size?: number;
+  /** A face the user picked, which wins over the one derived from seedKey. */
+  seed?: AvatarSeed | null;
 };
 
 const STROKE = 4;
@@ -20,7 +23,7 @@ const GAP = 9; // breathing room between the avatar and its ring
  * The avatar wearing its tier: a progress ring towards the next tier, a faint
  * dotted orbit for depth, and the tier medal pinned to the corner.
  */
-export function AvatarRing({seedKey, tier, progress, size = 96}: Props) {
+export function AvatarRing({seedKey, tier, progress, size = 96, seed}: Props) {
   const ring = size + GAP * 2;
   const radius = (ring - STROKE) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -62,14 +65,16 @@ export function AvatarRing({seedKey, tier, progress, size = 96}: Props) {
             strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={circumference * (1 - Math.max(0, Math.min(1, progress)))}
+            strokeDashoffset={
+              circumference * (1 - Math.max(0, Math.min(1, progress)))
+            }
             fill="none"
           />
         </G>
       </Svg>
 
       <View style={styles.avatar}>
-        <Avatar seedKey={seedKey} size={size} />
+        <Avatar seedKey={seedKey} size={size} seed={seed} />
       </View>
 
       {/* tier medal, pinned to the corner */}

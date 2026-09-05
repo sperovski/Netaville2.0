@@ -1,4 +1,4 @@
-import {Linking, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useRouter} from 'expo-router';
 import {
   ArrowLeft,
@@ -15,7 +15,12 @@ import {IconButton} from '@/components/IconButton';
 import {ListRow} from '@/components/ListRow';
 import {Screen} from '@/components/Screen';
 import {SectionLabel} from '@/components/SectionLabel';
+import {openExternal} from '@/lib/openExternal';
 import {colors, fonts, icon, radii, spacing, type as typography} from '@/theme';
+
+const address = 'Nikola Tesla 9, Karposh 2, 1000 Skopje';
+const mapQuery = 'Nikola+Tesla+9,+Karposh+2,+Skopje';
+const email = 'contact@netaville.mk';
 
 const hours = [
   {days: 'Monday – Friday', time: '08:00 – 22:00'},
@@ -44,7 +49,7 @@ export default function AboutScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.brandBlue}>Location</SectionLabel>
+        <SectionLabel>Location</SectionLabel>
         <View style={styles.card}>
           <Text style={styles.address}>Nikola Tesla 9, Karposh 2</Text>
           <Text style={styles.addressMuted}>1000 Skopje, Macedonia</Text>
@@ -56,16 +61,17 @@ export default function AboutScreen() {
               <MapPin size={16} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
             }
             onPress={() =>
-              void Linking.openURL(
-                'https://maps.apple.com/?q=Nikola+Tesla+9,+Karposh+2,+Skopje',
-              )
+              void openExternal(`https://maps.apple.com/?q=${mapQuery}`, {
+                title: 'No maps app',
+                message: `Find us at ${address}.`,
+              })
             }
           />
         </View>
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.gold}>Opening hours</SectionLabel>
+        <SectionLabel>Opening hours</SectionLabel>
         <View style={styles.card}>
           {hours.map((entry, index) => (
             <View
@@ -79,16 +85,21 @@ export default function AboutScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.cyan}>Get in touch</SectionLabel>
+        <SectionLabel>Get in touch</SectionLabel>
         <ListRow
           icon={<Mail size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />}
-          label="contact@netaville.mk"
-          onPress={() => void Linking.openURL('mailto:contact@netaville.mk')}
+          label={email}
+          onPress={() =>
+            void openExternal(`mailto:${email}`, {
+              title: 'No mail app',
+              message: `Write to us at ${email}.`,
+            })
+          }
         />
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.brandBlue}>Follow</SectionLabel>
+        <SectionLabel>Follow</SectionLabel>
         <View style={styles.socials}>
           {socials.map(({key, label, Icon}) => (
             <Pressable
@@ -103,7 +114,7 @@ export default function AboutScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.coral}>Community</SectionLabel>
+        <SectionLabel>Community</SectionLabel>
         <ListRow
           tone="coral"
           icon={

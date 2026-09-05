@@ -12,14 +12,31 @@ import {
   useFonts,
 } from '@expo-google-fonts/montserrat';
 import {NetavilleSplash} from '@/components/NetavilleSplash';
+import {AuthProvider, useAuth} from '@/context/auth';
 import {bootstrapApp} from '@/context/bootstrap';
 import {LoyaltyProvider} from '@/context/loyalty';
 import {RsvpProvider} from '@/context/rsvp';
 import {colors} from '@/theme';
 
-void SplashScreen.preventAutoHideAsync();
+// Rejects if the splash is already gone, which is not worth crashing over.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <AuthProvider>
+        <RsvpProvider>
+          <LoyaltyProvider>
+            <AppShell />
+          </LoyaltyProvider>
+        </RsvpProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function AppShell() {
+  const {status} = useAuth();
   const [booted, setBooted] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
@@ -32,12 +49,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      void SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
-    void bootstrapApp().then(() => setBooted(true));
+    // Booted either way: cold-start work that fails must not strand the app
+    // on the intro screen forever.
+    bootstrapApp()
+      .catch(() => {})
+      .finally(() => setBooted(true));
   }, []);
 
   const onIntroComplete = useCallback(() => setIntroDone(true), []);
@@ -48,36 +69,46 @@ export default function RootLayout() {
     return null;
   }
 
-  // The intro holds the screen until both the animation and the cold-start
-  // work are done — whichever finishes last.
-  const showSplash = !introDone || !booted;
+  // The intro holds the screen until the animation, the cold-start work and
+  // the stored-session lookup are all done — so a returning user never sees
+  // the sign-in screen flash past.
+  const restoring = status === 'restoring';
+  const showSplash = !introDone || !booted || restoring;
 
   return (
-    <SafeAreaProvider>
-      <RsvpProvider>
-        <LoyaltyProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: {backgroundColor: colors.bg},
-            }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="event/[id]" />
-            <Stack.Screen name="about" />
-            <Stack.Screen name="calendar" />
-            <Stack.Screen name="friends" />
-            <Stack.Screen name="notifications" />
-            <Stack.Screen
-              name="request-event"
-              options={{presentation: 'modal', animation: 'slide_from_bottom'}}
-            />
-          </Stack>
-          {showSplash ? (
-            <NetavilleSplash onComplete={onIntroComplete} holding={!booted} />
-          ) : null}
-        </LoyaltyProvider>
-      </RsvpProvider>
-    </SafeAreaProvider>
+    <>
+      <StatusBar style="dark" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: {backgroundColor: colors.bg},
+        }}>
+        <Stack.Protected guard={status === 'signedIn'}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="event/[id]" />
+          <Stack.Screen name="about" />
+          <Stack.Screen name="calendar" />
+          <Stack.Screen name="friends" />
+          <Stack.Screen name="notifications" />
+          <Stack.Screen
+            name="request-event"
+            options={{presentation: 'modal', animation: 'slide_from_bottom'}}
+          />
+          <Stack.Screen
+            name="avatar"
+            options={{presentation: 'modal', animation: 'slide_from_bottom'}}
+          />
+        </Stack.Protected>
+        <Stack.Protected guard={status === 'signedOut'}>
+          <Stack.Screen name="sign-in" />
+        </Stack.Protected>
+      </Stack>
+      {showSplash ? (
+        <NetavilleSplash
+          onComplete={onIntroComplete}
+          holding={!booted || restoring}
+        />
+      ) : null}
+    </>
   );
 }

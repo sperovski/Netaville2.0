@@ -1,6 +1,6 @@
 import {StyleSheet, View} from 'react-native';
 import {SvgXml} from 'react-native-svg';
-import {avatarFor} from '@/data/avatars';
+import {avatarBySeed, avatarFor, type AvatarSeed} from '@/data/avatars';
 import {colors} from '@/theme';
 
 type Props = {
@@ -9,9 +9,13 @@ type Props = {
   size?: number;
   /** White ring, used when avatars overlap in a stack. */
   ringed?: boolean;
+  /** A face the user picked, which wins over the one derived from seedKey. */
+  seed?: AvatarSeed | null;
 };
 
-export function Avatar({seedKey, size = 32, ringed = false}: Props) {
+export function Avatar({seedKey, size = 32, ringed = false, seed}: Props) {
+  const xml = seed == null ? avatarFor(seedKey) : avatarBySeed(seed);
+
   return (
     <View
       style={[
@@ -19,7 +23,7 @@ export function Avatar({seedKey, size = 32, ringed = false}: Props) {
         {width: size, height: size, borderRadius: size / 2},
         ringed ? styles.ringed : null,
       ]}>
-      <SvgXml xml={avatarFor(seedKey)} width={size} height={size} />
+      <SvgXml xml={xml} width={size} height={size} />
     </View>
   );
 }

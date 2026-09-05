@@ -33,7 +33,7 @@ export const events: NetavilleEvent[] = [
     attendeesGoing: 24,
     attendeesMaybe: 6,
     description:
-      'Bring a laptop and an idea. We pair up, build something small with Cursor in a single sitting, and demo it at the end. Beginners welcome — we start with a short walkthrough before the build block.',
+      'Bring a laptop and an idea. We pair up, build something small with Cursor in a single sitting, and demo it at the end. Beginners welcome. We start with a short walkthrough before the build block.',
     catering: true,
     drinks: true,
     openTo: 'Open to all',
@@ -51,14 +51,14 @@ export const events: NetavilleEvent[] = [
     attendeesGoing: 38,
     attendeesMaybe: 11,
     description:
-      'Teams of up to five, six rounds, one very opinionated host. Tech trivia mixed with general knowledge — no preparation needed, just show up with a team name.',
+      'Teams of up to five, six rounds, one very opinionated host. Tech trivia mixed with general knowledge. No preparation needed, just show up with a team name.',
     catering: false,
     drinks: true,
     openTo: 'Open to all',
   },
   {
     id: 'game-night-energet',
-    title: 'Game night — Енергет',
+    title: 'Game night at Енергет',
     isoDate: '2026-09-12',
     startTime: '20:00',
     endTime: '22:00',

@@ -15,8 +15,8 @@ type Props = {
 };
 
 /**
- * The "next up" hero. The gold fan behind it is the logo's own ray geometry,
- * bled off the corner — the card carries the brand instead of a generic tint.
+ * The "next up" hero. The fan behind it is the logo's own ray geometry, bled
+ * off the corner — the card carries the brand instead of a generic tint.
  */
 export function FeaturedEventCard({
   event,
@@ -32,9 +32,10 @@ export function FeaturedEventCard({
       style={({pressed}) => [styles.card, pressed ? styles.pressed : null]}>
       <BrandMotif
         name="rays"
-        color={colors.gold}
+        color={colors.featureRay}
         size={210}
         rotation={208}
+        opacity={0.13}
         position={styles.rays}
       />
 
@@ -55,12 +56,12 @@ export function FeaturedEventCard({
 
       <View style={styles.meta}>
         <View style={styles.metaItem}>
-          <Clock size={14} strokeWidth={icon.strokeWidth} color={colors.goldText} />
+          <Clock size={14} strokeWidth={icon.strokeWidth} color={colors.featureText} />
           <Text style={styles.metaText}>{event.durationLabel}</Text>
         </View>
         <View style={styles.metaDot} />
         <View style={styles.metaItem}>
-          <MapPin size={14} strokeWidth={icon.strokeWidth} color={colors.goldText} />
+          <MapPin size={14} strokeWidth={icon.strokeWidth} color={colors.featureText} />
           <Text style={styles.metaText}>{event.room}</Text>
         </View>
       </View>
@@ -84,10 +85,10 @@ export function FeaturedEventCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.goldCardBg,
+    backgroundColor: colors.featureBg,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.goldCardBorder,
+    borderColor: colors.featureBorder,
     padding: spacing.xl,
     gap: spacing.md,
     overflow: 'hidden',
@@ -120,17 +121,17 @@ const styles = StyleSheet.create({
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: colors.goldCardBorder,
+    backgroundColor: colors.featureBorder,
   },
   metaText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: colors.goldText,
+    color: colors.featureText,
   },
   rule: {
     borderTopWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.goldCardBorder,
+    borderColor: colors.featureBorder,
     marginTop: spacing.xs,
   },
   footer: {
@@ -143,7 +144,7 @@ const styles = StyleSheet.create({
   going: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: colors.goldText,
+    color: colors.featureText,
   },
   pressed: {opacity: 0.94},
 });

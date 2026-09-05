@@ -59,7 +59,7 @@ export default function FriendsScreen() {
 
       {requests.length > 0 ? (
         <View style={styles.section}>
-          <SectionLabel tone={colors.coral}>Requests</SectionLabel>
+          <SectionLabel>Requests</SectionLabel>
           <View style={styles.card}>
             {requests.map((request, index) => (
               <View
@@ -96,7 +96,7 @@ export default function FriendsScreen() {
       ) : null}
 
       <View style={styles.section}>
-        <SectionLabel tone={colors.brandBlue}>Your friends</SectionLabel>
+        <SectionLabel>Your friends</SectionLabel>
         <View style={styles.card}>
           {friends.map((friend, index) => (
             <View key={friend.id} style={[styles.row, index === 0 ? null : styles.divided]}>
@@ -133,7 +133,7 @@ export default function FriendsScreen() {
       <View style={styles.section}>
         <Text style={styles.note}>
           {rewards === 0
-            ? 'Your wallet is empty — collect 10 stamps to gift a coffee.'
+            ? 'Your wallet is empty. Collect 10 stamps to gift a coffee.'
             : `${rewards} free ${rewards === 1 ? 'coffee' : 'coffees'} in your wallet. Gifting cannot be undone.`}
         </Text>
       </View>

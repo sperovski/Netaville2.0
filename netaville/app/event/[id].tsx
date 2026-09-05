@@ -92,7 +92,7 @@ export default function EventDetailScreen() {
         </View>
 
         <View style={styles.block}>
-          <SectionLabel tone={colors.brandBlue}>Who&apos;s coming</SectionLabel>
+          <SectionLabel>Who&apos;s coming</SectionLabel>
           <View style={styles.attendees}>
             <AvatarStack count={attending} seedKey={event.id} size={34} />
             <Text style={styles.attendeeText}>
@@ -102,13 +102,13 @@ export default function EventDetailScreen() {
         </View>
 
         <View style={styles.block}>
-          <SectionLabel tone={colors.gold}>About</SectionLabel>
+          <SectionLabel>About</SectionLabel>
           <Text style={[typography.body, styles.description]}>{event.description}</Text>
         </View>
 
         {event.catering || event.drinks ? (
           <View style={styles.block}>
-            <SectionLabel tone={colors.coral}>What&apos;s included</SectionLabel>
+            <SectionLabel>What&apos;s included</SectionLabel>
             <View style={styles.perks}>
               {event.catering ? (
                 <Perk tone={colors.coralText} label="Catering included">
