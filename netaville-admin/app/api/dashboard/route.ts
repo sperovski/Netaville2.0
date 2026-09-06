@@ -1,36 +1,40 @@
 import {NextResponse} from 'next/server';
 import {requireAdmin} from '@/lib/auth';
-import {db, refreshScreenPresence} from '@/lib/store';
+import {
+  countPendingRequests,
+  countScreens,
+  countStudents,
+  countUnpublishedEvents,
+  listUpcomingEvents,
+  recentActivity,
+} from '@/lib/store';
 
 export async function GET() {
   const gate = await requireAdmin();
   if ('response' in gate) {
     return gate.response;
   }
-  refreshScreenPresence();
 
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = db.events
-    .filter(event => event.published && event.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const screens = db.screens.filter(screen => screen.paired);
-  const playing = screens.filter(
-    screen => screen.online && screen.activePlaylistId !== null,
-  );
+  // Independent reads, so they go out together rather than in a chain.
+  const [pending, upcoming, students, screens, unpublished, activity] =
+    await Promise.all([
+      countPendingRequests(),
+      listUpcomingEvents(),
+      countStudents(),
+      countScreens(),
+      countUnpublishedEvents(),
+      recentActivity(8),
+    ]);
 
   return NextResponse.json({
-    pendingRequests: db.requests.filter(entry => entry.status === 'pending')
-      .length,
+    pendingRequests: pending,
     upcomingEvents: upcoming.length,
     nextEvents: upcoming.slice(0, 4),
-    studentsOnline: db.users.filter(
-      user => user.role === 'student' && user.online && user.active,
-    ).length,
-    studentsTotal: db.users.filter(user => user.role === 'student').length,
-    screensPlaying: playing.length,
-    screensPaired: screens.length,
-    unpublishedEvents: db.events.filter(event => !event.published).length,
-    activity: db.activity.slice(0, 8),
+    studentsOnline: students.online,
+    studentsTotal: students.total,
+    screensPlaying: screens.playing,
+    screensPaired: screens.paired,
+    unpublishedEvents: unpublished,
+    activity,
   });
 }

@@ -1,15 +1,14 @@
 import {NextResponse} from 'next/server';
 import {requireAdmin} from '@/lib/auth';
-import {db, logActivity, newId} from '@/lib/store';
-import type {NetavilleEvent} from '@/lib/types';
+import {createEvent, listEvents, logActivity} from '@/lib/store';
+import {DIETARY_OPTIONS, type Dietary, type NetavilleEvent} from '@/lib/types';
 
 export async function GET() {
   const gate = await requireAdmin();
   if ('response' in gate) {
     return gate.response;
   }
-  const events = [...db.events].sort((a, b) => a.date.localeCompare(b.date));
-  return NextResponse.json({events});
+  return NextResponse.json({events: await listEvents()});
 }
 
 export async function POST(request: Request) {
@@ -19,13 +18,13 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as Partial<NetavilleEvent>;
-  if ((body.title ?? '').trim().length === 0) {
+  const title = (body.title ?? '').trim();
+  if (title.length === 0) {
     return NextResponse.json({error: 'An event needs a title.'}, {status: 400});
   }
 
-  const created: NetavilleEvent = {
-    id: newId('e'),
-    title: body.title!.trim(),
+  const created = await createEvent({
+    title,
     description: body.description ?? '',
     date: body.date ?? new Date().toISOString().slice(0, 10),
     startTime: body.startTime ?? '18:00',
@@ -35,9 +34,14 @@ export async function POST(request: Request) {
     priceInfo: body.priceInfo ?? 'Free',
     cafeteriaDiscount: body.cafeteriaDiscount ?? 0,
     catering: body.catering ?? 'None',
+    dietary: (body.dietary ?? []).filter((value): value is Dietary =>
+      DIETARY_OPTIONS.includes(value as Dietary),
+    ),
+    foodNotes: body.foodNotes ?? '',
+    drinks: body.drinks ?? false,
+    openTo: body.openTo ?? 'Open to all',
     published: body.published ?? false,
-  };
-  db.events.push(created);
-  logActivity('event', `Created “${created.title}”`);
+  });
+  await logActivity('event', `Created “${created.title}”`);
   return NextResponse.json({event: created}, {status: 201});
 }

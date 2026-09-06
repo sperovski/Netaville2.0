@@ -1,7 +1,7 @@
 import {redirect} from 'next/navigation';
 import {Shell} from '@/components/Shell';
 import {readSession} from '@/lib/auth';
-import {db, userById} from '@/lib/store';
+import {listRequests} from '@/lib/store';
 import {RequestsView, type RequestRow} from './RequestsView';
 
 export const metadata = {title: 'Event requests · Netaville Admin'};
@@ -13,13 +13,7 @@ export default async function RequestsPage() {
     redirect('/login');
   }
 
-  const rows: RequestRow[] = [...db.requests]
-    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-    .map(entry => ({
-      ...entry,
-      requester: userById(entry.requesterId)?.name ?? 'Unknown student',
-      requesterEmail: userById(entry.requesterId)?.email ?? '',
-    }));
+  const rows: RequestRow[] = await listRequests();
 
   return (
     <Shell

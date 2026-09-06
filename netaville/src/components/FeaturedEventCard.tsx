@@ -1,5 +1,5 @@
 import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {Clock, MapPin} from 'lucide-react-native';
+import {CalendarDays, Clock, MapPin, Tag} from 'lucide-react-native';
 import {AvatarStack} from './AvatarStack';
 import {BrandMotif} from './BrandMotif';
 import {PrimaryButton} from './PrimaryButton';
@@ -11,20 +11,13 @@ type Props = {
   going: boolean;
   goingCount: number;
   onPress: () => void;
-  onToggleRsvp: () => void;
 };
 
 /**
  * The "next up" hero. The fan behind it is the logo's own ray geometry, bled
  * off the corner — the card carries the brand instead of a generic tint.
  */
-export function FeaturedEventCard({
-  event,
-  going,
-  goingCount,
-  onPress,
-  onToggleRsvp,
-}: Props) {
+export function FeaturedEventCard({event, going, goingCount, onPress}: Props) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -41,14 +34,24 @@ export function FeaturedEventCard({
 
       <View style={styles.tagRow}>
         <View style={styles.tag}>
-          <View style={[styles.marker, {backgroundColor: colors.coral}]} />
+          <CalendarDays
+            size={13}
+            strokeWidth={icon.strokeWidth}
+            color={colors.coralText}
+          />
           <Text style={[styles.tagText, {color: colors.coralText}]}>
             {formatEventDate(event.isoDate)} · {event.startTime}
           </Text>
         </View>
         <View style={styles.tag}>
-          <View style={[styles.marker, {backgroundColor: colors.cyan}]} />
-          <Text style={[styles.tagText, {color: colors.cyanText}]}>{event.category}</Text>
+          <Tag
+            size={13}
+            strokeWidth={icon.strokeWidth}
+            color={colors.cyanText}
+          />
+          <Text style={[styles.tagText, {color: colors.cyanText}]}>
+            {event.category}
+          </Text>
         </View>
       </View>
 
@@ -56,29 +59,38 @@ export function FeaturedEventCard({
 
       <View style={styles.meta}>
         <View style={styles.metaItem}>
-          <Clock size={14} strokeWidth={icon.strokeWidth} color={colors.featureText} />
+          <Clock
+            size={14}
+            strokeWidth={icon.strokeWidth}
+            color={colors.featureText}
+          />
           <Text style={styles.metaText}>{event.durationLabel}</Text>
         </View>
-        <View style={styles.metaDot} />
         <View style={styles.metaItem}>
-          <MapPin size={14} strokeWidth={icon.strokeWidth} color={colors.featureText} />
+          <MapPin
+            size={14}
+            strokeWidth={icon.strokeWidth}
+            color={colors.featureText}
+          />
           <Text style={styles.metaText}>{event.room}</Text>
         </View>
       </View>
 
       <View style={styles.rule} />
 
-      <View style={styles.footer}>
-        <View style={styles.attendees}>
-          <AvatarStack count={goingCount} seedKey={event.id} size={30} />
-          <Text style={styles.going}>{goingCount} going</Text>
-        </View>
-        <PrimaryButton
-          label={going ? 'Going' : "I'm going"}
-          size="sm"
-          onPress={onToggleRsvp}
-        />
+      <View style={styles.attendees}>
+        <AvatarStack count={goingCount} seedKey={event.id} size={30} />
+        <Text style={styles.going}>{goingCount} going</Text>
       </View>
+
+      {/* Opening the event is the only action here. Saying yes lives on its
+          own page, where the choice can be confirmed rather than toggled. */}
+      <PrimaryButton
+        label={going ? "View event · you're going" : 'View event'}
+        variant={going ? 'primary' : 'secondary'}
+        full
+        onPress={onPress}
+      />
     </Pressable>
   );
 }
@@ -100,7 +112,6 @@ const styles = StyleSheet.create({
   },
   tagRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.lg},
   tag: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  marker: {width: 7, height: 7, borderRadius: 1.5},
   tagText: {
     fontFamily: fonts.bold,
     fontSize: 11,
@@ -115,14 +126,8 @@ const styles = StyleSheet.create({
     color: colors.textInk,
     marginTop: 2,
   },
-  meta: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
+  meta: {flexDirection: 'row', alignItems: 'center', gap: spacing.lg},
   metaItem: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.featureBorder,
-  },
   metaText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
@@ -133,12 +138,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: colors.featureBorder,
     marginTop: spacing.xs,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
   },
   attendees: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
   going: {

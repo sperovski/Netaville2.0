@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
 import {requireAdmin} from '@/lib/auth';
-import {db, logActivity} from '@/lib/store';
+import {logActivity, pairScreen} from '@/lib/store';
 
 /** Claims a screen by the 6-digit code it is displaying. */
 export async function POST(request: Request) {
@@ -18,21 +18,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const screen = db.screens.find(candidate => candidate.pairingCode === code);
-  if (screen === undefined) {
-    return NextResponse.json(
-      {error: 'No screen is showing that code.'},
-      {status: 404},
-    );
-  }
-  if (screen.paired) {
-    return NextResponse.json(
-      {error: `“${screen.name}” is already paired.`},
-      {status: 409},
-    );
+  const result = await pairScreen(code);
+  if ('error' in result) {
+    return result.error === 'unknown'
+      ? NextResponse.json(
+          {error: 'No screen is showing that code.'},
+          {status: 404},
+        )
+      : NextResponse.json({error: 'That screen is already paired.'}, {status: 409});
   }
 
-  screen.paired = true;
-  logActivity('screen', `Paired “${screen.name}”`);
-  return NextResponse.json({screen});
+  await logActivity('screen', `Paired “${result.screen.name}”`);
+  return NextResponse.json({screen: result.screen});
 }

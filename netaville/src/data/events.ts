@@ -1,4 +1,11 @@
-export type EventCategory = 'Workshop' | 'Social' | 'Quiz' | 'Private';
+/** Mirrors EventCategory in the panel (netaville-admin/lib/types.ts). */
+export type EventCategory =
+  | 'Workshop'
+  | 'Social'
+  | 'Talk'
+  | 'Quiz'
+  | 'Community'
+  | 'Private';
 
 export type NetavilleEvent = {
   id: string;
@@ -19,6 +26,11 @@ export type NetavilleEvent = {
   openTo: string;
 };
 
+/**
+ * The offline fallback. The live feed comes from the panel's /api/app/events
+ * (see src/context/rsvp.tsx); this is what the app shows when that is out of
+ * reach, so a student on a bad connection still sees something real.
+ */
 export const events: NetavilleEvent[] = [
   {
     id: 'cursor-community-build',

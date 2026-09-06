@@ -1,5 +1,5 @@
 import {cookies} from 'next/headers';
-import {db} from './store';
+import {userByEmail, userById} from './store';
 import type {User} from './types';
 
 /**
@@ -23,10 +23,11 @@ export type SignInResult =
   | {ok: true; user: User}
   | {ok: false; error: string};
 
-export function verifyCredentials(email: string, password: string): SignInResult {
-  const user = db.users.find(
-    candidate => candidate.email.toLowerCase() === email.trim().toLowerCase(),
-  );
+export async function verifyCredentials(
+  email: string,
+  password: string,
+): Promise<SignInResult> {
+  const user = await userByEmail(email);
 
   // One message for every failure: no account, wrong password, or a student
   // trying the admin panel all look identical from outside.
@@ -35,7 +36,7 @@ export function verifyCredentials(email: string, password: string): SignInResult
     error: 'Those details do not match an admin account.',
   } as const;
 
-  if (user === undefined || user.role !== 'admin' || !user.active) {
+  if (user === null || user.role !== 'admin' || !user.active) {
     return rejection;
   }
   if (password !== ADMIN_DEV_PASSWORD) {
@@ -50,10 +51,10 @@ export async function readSession(): Promise<User | null> {
   if (id === undefined) {
     return null;
   }
-  const user = db.users.find(candidate => candidate.id === id);
+  const user = await userById(id);
   // Re-check the role on every read: demoting an account takes effect at once,
   // rather than lasting until their cookie happens to expire.
-  if (user === undefined || user.role !== 'admin' || !user.active) {
+  if (user === null || user.role !== 'admin' || !user.active) {
     return null;
   }
   return user;

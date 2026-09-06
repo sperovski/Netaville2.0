@@ -1,13 +1,22 @@
 import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {Clock, MapPin} from 'lucide-react-native';
+import {Clock, MapPin, Tag} from 'lucide-react-native';
 import {colors, fonts, icon, radii, spacing} from '@/theme';
 import {isEventToday, parseIsoDate, type NetavilleEvent} from '@/data/events';
-import {GhostButton} from './GhostButton';
 import {PrimaryButton} from './PrimaryButton';
 
 const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ] as const;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -16,10 +25,21 @@ type Props = {
   event: NetavilleEvent;
   going: boolean;
   onPress: () => void;
-  onToggleRsvp: () => void;
 };
 
-export function EventCard({event, going, onPress, onToggleRsvp}: Props) {
+/** One fact with the icon that names it — no bullet needed to separate them. */
+function Meta({children, label}: {children: React.ReactNode; label: string}) {
+  return (
+    <View style={styles.metaItem}>
+      {children}
+      <Text style={styles.metaText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+export function EventCard({event, going, onPress}: Props) {
   const date = parseIsoDate(event.isoDate);
   const today = isEventToday(event);
 
@@ -28,70 +48,73 @@ export function EventCard({event, going, onPress, onToggleRsvp}: Props) {
       accessibilityRole="button"
       onPress={onPress}
       style={({pressed}) => [styles.card, pressed ? styles.pressed : null]}>
-      {/* date stub — a torn-off ticket, so the list has a spine you can scan */}
-      <View style={[styles.stub, today ? styles.stubToday : null]}>
-        <View style={[styles.stubBand, today ? styles.stubBandToday : null]}>
-          <Text style={styles.stubBandText}>
-            {today ? 'Today' : WEEKDAYS[date.getDay()]}
-          </Text>
-        </View>
-        <View style={styles.stubBody}>
-          <Text style={[styles.day, today ? styles.dayToday : null]}>
-            {date.getDate()}
-          </Text>
-          <Text style={[styles.month, today ? styles.monthToday : null]}>
-            {MONTHS[date.getMonth()]}
-          </Text>
-        </View>
-        {/* perforation down the tear edge */}
-        <View style={styles.perforation} pointerEvents="none">
-          {[0, 1, 2, 3, 4].map(dot => (
-            <View
-              key={dot}
-              style={[styles.perfDot, today ? styles.perfDotToday : null]}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.body}>
-        <View style={styles.top}>
-          <Text style={styles.title} numberOfLines={2}>
-            {event.title}
-          </Text>
-          <View style={styles.action}>
-            {going ? (
-              <PrimaryButton label="Going" size="sm" onPress={onToggleRsvp} />
-            ) : (
-              <GhostButton label="RSVP" size="sm" onPress={onToggleRsvp} />
-            )}
+      <View style={styles.head}>
+        {/* date stub — a torn-off ticket, so the list has a spine you can scan */}
+        <View style={[styles.stub, today ? styles.stubToday : null]}>
+          <View style={[styles.stubBand, today ? styles.stubBandToday : null]}>
+            <Text style={styles.stubBandText}>
+              {today ? 'Today' : WEEKDAYS[date.getDay()]}
+            </Text>
           </View>
-        </View>
-
-        <View style={styles.meta}>
-          <Text style={styles.time}>{event.startTime}</Text>
-          <View style={styles.metaDot} />
-          <View style={styles.metaItem}>
-            <Clock size={13} strokeWidth={icon.strokeWidth} color={colors.textDim} />
-            <Text style={styles.metaText}>{event.durationLabel}</Text>
-          </View>
-          <View style={styles.metaDot} />
-          <View style={styles.metaItem}>
-            <MapPin size={13} strokeWidth={icon.strokeWidth} color={colors.textDim} />
-            <Text style={styles.metaText} numberOfLines={1}>
-              {event.room}
+          <View style={styles.stubBody}>
+            <Text style={[styles.day, today ? styles.dayToday : null]}>
+              {date.getDate()}
+            </Text>
+            <Text style={[styles.month, today ? styles.monthToday : null]}>
+              {MONTHS[date.getMonth()]}
             </Text>
           </View>
         </View>
+
+        <View style={styles.body}>
+          <Text style={styles.title} numberOfLines={2}>
+            {event.title}
+          </Text>
+
+          <View style={styles.meta}>
+            <Meta label={`${event.startTime} · ${event.durationLabel}`}>
+              <Clock
+                size={13}
+                strokeWidth={icon.strokeWidth}
+                color={colors.textDim}
+              />
+            </Meta>
+            <Meta label={event.category}>
+              <Tag
+                size={13}
+                strokeWidth={icon.strokeWidth}
+                color={colors.textDim}
+              />
+            </Meta>
+          </View>
+
+          <View style={styles.meta}>
+            <Meta label={event.room}>
+              <MapPin
+                size={13}
+                strokeWidth={icon.strokeWidth}
+                color={colors.textDim}
+              />
+            </Meta>
+          </View>
+        </View>
       </View>
+
+      {/* One action, the width of the card: open it. Saying yes belongs on the
+          event's own page, where there is room to confirm it. */}
+      <PrimaryButton
+        label={going ? "View event · you're going" : 'View event'}
+        variant={going ? 'primary' : 'secondary'}
+        size="sm"
+        full
+        onPress={onPress}
+      />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radii.card,
@@ -99,9 +122,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg - 2,
   },
+  head: {flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md},
   stub: {
     width: 52,
-    borderRadius: radii.cardSm - 4,
+    borderRadius: radii.cardSm,
     borderWidth: 1,
     borderColor: colors.blueTintBorder,
     backgroundColor: colors.surface,
@@ -127,20 +151,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 1,
   },
-  perforation: {
-    position: 'absolute',
-    right: 3,
-    top: 22,
-    bottom: 5,
-    justifyContent: 'space-between',
-  },
-  perfDot: {
-    width: 2,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.blueTintBorder,
-  },
-  perfDotToday: {backgroundColor: colors.coralTintBorder},
   day: {
     fontFamily: fonts.extrabold,
     fontSize: 21,
@@ -157,34 +167,20 @@ const styles = StyleSheet.create({
     color: colors.textDim,
   },
   monthToday: {color: colors.coralText, opacity: 0.8},
-  body: {flex: 1, gap: spacing.sm},
-  top: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
+  body: {flex: 1, gap: 6},
   title: {
-    flex: 1,
     fontFamily: fonts.bold,
     fontSize: 16,
     lineHeight: 21,
     letterSpacing: -0.3,
     color: colors.textInk,
   },
-  action: {flexShrink: 0, paddingTop: 1},
-  meta: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm - 2},
-  time: {
-    fontFamily: fonts.bold,
-    fontSize: 12.5,
-    color: colors.textMuted,
-  },
-  metaItem: {flexDirection: 'row', alignItems: 'center', gap: 4},
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.border,
+  meta: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
+  metaItem: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   metaText: {
     fontFamily: fonts.medium,

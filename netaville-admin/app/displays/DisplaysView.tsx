@@ -11,7 +11,13 @@ import {ImageUploader} from '@/components/ImageUploader';
 import {SlideCard, type SlideEvent} from '@/components/SlideCard';
 import {StatusPill} from '@/components/StatusPill';
 import {timeAgo} from '@/lib/format';
-import type {Playlist, Screen, Slide, SlideType} from '@/lib/types';
+import type {
+  Playlist,
+  Screen,
+  ScreenTheme,
+  Slide,
+  SlideType,
+} from '@/lib/types';
 
 type Props = {
   screens: Screen[];
@@ -25,17 +31,41 @@ function newSlideId(): string {
   return `sl-${Date.now().toString(36)}${slideCounter.toString(36)}`;
 }
 
+/** What each slide type is called where an admin has to choose one. */
+const TYPE_LABEL: Record<SlideType, string> = {
+  upcoming: 'events board',
+  marketing: 'commercial',
+  announcement: 'single event',
+  poster: 'poster',
+};
+
+/** The board is read across a room, so it needs longer than an advert. */
+const DEFAULT_DURATION: Record<SlideType, number> = {
+  upcoming: 18,
+  announcement: 12,
+  marketing: 8,
+  poster: 8,
+};
+
 function blankSlide(type: SlideType, events: SlideEvent[]): Slide {
   return {
     id: newSlideId(),
     type,
-    durationSec: type === 'announcement' ? 12 : 8,
+    durationSec: DEFAULT_DURATION[type],
     enabled: true,
     eventId: type === 'announcement' ? events[0]?.id : undefined,
-    headline: type === 'marketing' ? '' : undefined,
+    headline:
+      type === 'marketing' ? '' : type === 'upcoming' ? "What's on" : undefined,
     cta: type === 'marketing' ? '' : undefined,
+    eventLimit: type === 'upcoming' ? 5 : undefined,
   };
 }
+
+const THEMES: {value: ScreenTheme; label: string; hint: string}[] = [
+  {value: 'auto', label: 'Auto', hint: 'Light 07–19, dark overnight'},
+  {value: 'light', label: 'Light', hint: 'For a bright room'},
+  {value: 'dark', label: 'Dark', hint: 'For a dim foyer'},
+];
 
 export function DisplaysView({screens, playlists, events}: Props) {
   const router = useRouter();
@@ -57,7 +87,9 @@ export function DisplaysView({screens, playlists, events}: Props) {
           playlist.screenId === screen?.id &&
           (screen?.activePlaylistId === null ||
             playlist.id === screen?.activePlaylistId),
-      ) ?? playlists.find(playlist => playlist.screenId === screen?.id) ?? null,
+      ) ??
+      playlists.find(playlist => playlist.screenId === screen?.id) ??
+      null,
     [playlists, screen],
   );
 
@@ -79,6 +111,31 @@ export function DisplaysView({screens, playlists, events}: Props) {
   const dragFrom = useRef<number | null>(null);
   const dragTo = useRef<number | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  /** The theme being written, so only the button in flight shows as busy. */
+  const [themeBusy, setThemeBusy] = useState<ScreenTheme | null>(null);
+
+  const setTheme = async (id: string, theme: ScreenTheme) => {
+    setThemeBusy(theme);
+    setError(null);
+    try {
+      const response = await fetch(`/api/screens/${id}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({theme}),
+      });
+      if (!response.ok) {
+        const data = (await response.json()) as {error?: string};
+        setError(data.error ?? 'Could not change the theme.');
+        return;
+      }
+      // The TV picks it up on its next poll; the panel just needs the row back.
+      router.refresh();
+    } catch {
+      setError('Could not reach the server.');
+    } finally {
+      setThemeBusy(null);
+    }
+  };
 
   const patchSlides = (next: Slide[]) => {
     setSlides(next);
@@ -135,7 +192,10 @@ export function DisplaysView({screens, playlists, events}: Props) {
       const created = await fetch('/api/playlists', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({screenId: screen.id, name: `${screen.name} rotation`}),
+        body: JSON.stringify({
+          screenId: screen.id,
+          name: `${screen.name} rotation`,
+        }),
       });
       const data = (await created.json()) as {playlist?: Playlist};
       if (data.playlist === undefined) {
@@ -236,7 +296,9 @@ export function DisplaysView({screens, playlists, events}: Props) {
                     {screen.name}
                   </h2>
                   {screen.paired ? (
-                    <StatusPill tone={screen.online ? 'success' : 'neutral'} dot>
+                    <StatusPill
+                      tone={screen.online ? 'success' : 'neutral'}
+                      dot>
                       {screen.online ? 'Online' : 'Offline'}
                     </StatusPill>
                   ) : (
@@ -261,6 +323,43 @@ export function DisplaysView({screens, playlists, events}: Props) {
                   onClick={() => void savePlaylist(true)}>
                   {busy ? 'Pushing…' : 'Push to TV'}
                 </Button>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-dim">
+                  Screen theme
+                </p>
+                <p className="mt-0.5 text-[12.5px] text-muted">
+                  Auto keeps a bright layout off the panel all night.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {THEMES.map(option => {
+                  const on = screen.theme === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      title={option.hint}
+                      disabled={themeBusy !== null}
+                      onClick={() => void setTheme(screen.id, option.value)}
+                      className={`rounded-control border px-3.5 py-2 text-left transition-colors disabled:opacity-60 ${
+                        on
+                          ? 'border-brand bg-brand text-white'
+                          : 'border-line bg-surface text-ink hover:border-brand-edge'
+                      }`}>
+                      <span className="block text-[13px] font-bold">
+                        {themeBusy === option.value ? 'Saving…' : option.label}
+                      </span>
+                      <span
+                        className={`block text-[11.5px] ${on ? 'text-white/75' : 'text-muted'}`}>
+                        {option.hint}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -328,7 +427,8 @@ export function DisplaysView({screens, playlists, events}: Props) {
                         setDraggingIndex(index);
                       }}
                       onDragOver={position => {
-                        dragTo.current = position === 'before' ? index : index + 1;
+                        dragTo.current =
+                          position === 'before' ? index : index + 1;
                       }}
                       onDrop={commitDrag}
                       onDragEnd={() => {
@@ -347,18 +447,23 @@ export function DisplaysView({screens, playlists, events}: Props) {
               )}
 
               <div className="mt-5 flex gap-2 border-t border-line pt-5">
-                {(['poster', 'announcement', 'marketing'] as SlideType[]).map(
-                  type => (
-                    <Button
-                      key={type}
-                      size="sm"
-                      variant="ghost"
-                      disabled={type === 'announcement' && events.length === 0}
-                      onClick={() => setEditing(blankSlide(type, events))}>
-                      Add {type}
-                    </Button>
-                  ),
-                )}
+                {(
+                  [
+                    'upcoming',
+                    'marketing',
+                    'announcement',
+                    'poster',
+                  ] as SlideType[]
+                ).map(type => (
+                  <Button
+                    key={type}
+                    size="sm"
+                    variant="ghost"
+                    disabled={type === 'announcement' && events.length === 0}
+                    onClick={() => setEditing(blankSlide(type, events))}>
+                    Add {TYPE_LABEL[type]}
+                  </Button>
+                ))}
               </div>
             </div>
           </Card>
@@ -430,7 +535,9 @@ function SlideEditor({
   }
 
   const patch = (changes: Partial<Slide>) =>
-    setDraft(current => (current === null ? current : {...current, ...changes}));
+    setDraft(current =>
+      current === null ? current : {...current, ...changes},
+    );
 
   /** datetime-local wants "YYYY-MM-DDTHH:mm", ISO strings carry more. */
   const toLocal = (iso?: string) => (iso === undefined ? '' : iso.slice(0, 16));
@@ -439,7 +546,9 @@ function SlideEditor({
     <Drawer
       open
       onClose={onClose}
-      title={`${draft.type[0]!.toUpperCase()}${draft.type.slice(1)} slide`}
+      title={`${TYPE_LABEL[draft.type][0]!.toUpperCase()}${TYPE_LABEL[
+        draft.type
+      ].slice(1)} slide`}
       subtitle="Shown full-screen on the TV in playlist order."
       footer={
         <>
@@ -450,7 +559,38 @@ function SlideEditor({
         </>
       }>
       <div className="space-y-4">
-        {draft.type === 'announcement' ? (
+        {draft.type === 'upcoming' ? (
+          <>
+            <p className="rounded-card border border-success-edge bg-success-tint p-4 text-[13px] leading-relaxed text-success">
+              The board draws the next published events by itself, so it is
+              always current. Put commercials between two boards and the wall
+              alternates between what&apos;s on and what you&apos;re selling.
+            </p>
+            <Field label="Heading">
+              <Input
+                value={draft.headline ?? ''}
+                onChange={event => patch({headline: event.target.value})}
+                placeholder="What's on"
+              />
+            </Field>
+            <Field label="How many events to show">
+              <Input
+                type="number"
+                min={1}
+                max={12}
+                value={draft.eventLimit ?? 5}
+                onChange={event =>
+                  patch({
+                    eventLimit: Math.min(
+                      12,
+                      Math.max(1, Number(event.target.value)),
+                    ),
+                  })
+                }
+              />
+            </Field>
+          </>
+        ) : draft.type === 'announcement' ? (
           <Field label="Event">
             <Select
               value={draft.eventId ?? ''}
@@ -466,7 +606,9 @@ function SlideEditor({
           <ImageUploader
             value={draft.imageUrl}
             onChange={url => patch({imageUrl: url})}
-            label={draft.type === 'poster' ? 'Poster image' : 'Background image'}
+            label={
+              draft.type === 'poster' ? 'Poster image' : 'Background image'
+            }
           />
         )}
 

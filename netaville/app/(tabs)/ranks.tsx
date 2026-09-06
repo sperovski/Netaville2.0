@@ -44,7 +44,10 @@ export default function RanksScreen() {
       </View>
 
       <View style={styles.section}>
-        <Podium entries={ordered.slice(0, 3)} scoreOf={entry => scoreFor(entry, range)} />
+        <Podium
+          entries={ordered.slice(0, 3)}
+          scoreOf={entry => scoreFor(entry, range)}
+        />
       </View>
 
       <View style={styles.section}>
@@ -58,7 +61,11 @@ export default function RanksScreen() {
                 index === 0 ? null : styles.divided,
                 entry.isYou ? styles.rowYou : null,
               ]}>
-              <Text style={[styles.position, entry.isYou ? styles.positionYou : null]}>
+              <Text
+                style={[
+                  styles.position,
+                  entry.isYou ? styles.positionYou : null,
+                ]}>
                 {index + 4}
               </Text>
               <Avatar seedKey={entry.id} size={34} />
@@ -68,8 +75,13 @@ export default function RanksScreen() {
                   {entry.isYou ? ' · you' : ''}
                 </Text>
                 <View style={styles.tierLine}>
-                  <TierMedal tier={tierFor(entry.lifetimeStamps).name} size={14} />
-                  <Text style={styles.tier}>{tierFor(entry.lifetimeStamps).name}</Text>
+                  <TierMedal
+                    tier={tierFor(entry.lifetimeStamps).name}
+                    size={14}
+                  />
+                  <Text style={styles.tier}>
+                    {tierFor(entry.lifetimeStamps).name}
+                  </Text>
                 </View>
               </View>
               <Text style={styles.score}>{scoreFor(entry, range)}</Text>
@@ -82,7 +94,9 @@ export default function RanksScreen() {
         <SectionLabel>Tiers</SectionLabel>
         <View style={styles.card}>
           {tiers.map((tier, index) => (
-            <View key={tier.name} style={[styles.row, index === 0 ? null : styles.divided]}>
+            <View
+              key={tier.name}
+              style={[styles.row, index === 0 ? null : styles.divided]}>
               <TierMedal tier={tier.name} size={34} />
               <View style={styles.rowBody}>
                 <Text style={styles.name}>{tier.name}</Text>
@@ -105,18 +119,26 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   toggleRow: {flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.md},
-  section: {paddingHorizontal: spacing.xl, gap: spacing.md, paddingBottom: spacing.xl},
+  section: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
+    // The inset lives on the rows, not here, so a highlighted row can run the
+    // full width of the card instead of stopping short at both ends. `hidden`
+    // is what then keeps it inside the rounded corners.
+    overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   rowYou: {backgroundColor: colors.blueTintBg},

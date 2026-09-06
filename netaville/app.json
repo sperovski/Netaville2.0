@@ -26,12 +26,7 @@
       "expo-router",
       "expo-font",
       "expo-splash-screen",
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.957122754658-tmpgkcdqs7uukmq5pcv8dib3k44o1dke"
-        }
-      ]
+      "expo-web-browser"
     ],
     "scheme": "netaville"
   }

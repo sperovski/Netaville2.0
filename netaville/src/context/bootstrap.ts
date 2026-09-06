@@ -1,19 +1,19 @@
 /**
- * Cold-start work that has to finish before the app is usable: remote config
- * and the first events fetch. Still local — swap the bodies for real calls and
- * the splash timing keeps working. The session lookup lives in AuthProvider
- * (src/context/auth.tsx); the splash waits on that separately.
+ * Cold-start work that has to finish before the app is usable.
+ *
+ * The events prefetch used to live here. It moved into RsvpProvider
+ * (src/context/rsvp.tsx) once the feed became a real request: it needs the
+ * signed-in account to know whose RSVPs to send back, and the events screen
+ * carries its own spinner, so holding the splash on it only made launch slower.
+ * Remote config is still local — swap the body for a real call and the splash
+ * timing keeps working.
  */
 export async function bootstrapApp(): Promise<void> {
-  await Promise.all([loadConfig(), prefetchEvents()]);
+  await loadConfig();
 }
 
 const settle = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 async function loadConfig(): Promise<void> {
   await settle(240);
-}
-
-async function prefetchEvents(): Promise<void> {
-  await settle(420);
 }

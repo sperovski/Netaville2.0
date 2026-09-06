@@ -1,8 +1,10 @@
 import type {
   Activity,
+  StampCard,
   EventRequest,
   NetavilleEvent,
   Playlist,
+  Rsvp,
   Screen,
   User,
 } from './types';
@@ -34,7 +36,7 @@ export const seedUsers: User[] = [
   {
     id: 'u-1',
     name: 'Quiet Otter',
-    email: 'quiet.otter@students.finki.mk',
+    email: 'quiet.otter@students.finki.ukim.mk',
     role: 'student',
     online: true,
     lastSeen: hoursAgo(0.05),
@@ -46,7 +48,7 @@ export const seedUsers: User[] = [
   {
     id: 'u-2',
     name: 'Marble Fox',
-    email: 'marble.fox@students.finki.mk',
+    email: 'marble.fox@students.finki.ukim.mk',
     role: 'student',
     online: true,
     lastSeen: hoursAgo(0.2),
@@ -58,7 +60,7 @@ export const seedUsers: User[] = [
   {
     id: 'u-3',
     name: 'Slow Comet',
-    email: 'slow.comet@students.finki.mk',
+    email: 'slow.comet@students.finki.ukim.mk',
     role: 'student',
     online: false,
     lastSeen: hoursAgo(30),
@@ -70,7 +72,7 @@ export const seedUsers: User[] = [
   {
     id: 'u-4',
     name: 'Paper Lantern',
-    email: 'paper.lantern@students.finki.mk',
+    email: 'paper.lantern@students.finki.ukim.mk',
     role: 'student',
     online: true,
     lastSeen: hoursAgo(0.4),
@@ -82,7 +84,7 @@ export const seedUsers: User[] = [
   {
     id: 'u-5',
     name: 'Copper Wren',
-    email: 'copper.wren@students.finki.mk',
+    email: 'copper.wren@students.finki.ukim.mk',
     role: 'student',
     online: false,
     lastSeen: hoursAgo(8),
@@ -94,7 +96,7 @@ export const seedUsers: User[] = [
   {
     id: 'u-6',
     name: 'Amber Vale',
-    email: 'amber.vale@students.finki.mk',
+    email: 'amber.vale@students.finki.ukim.mk',
     role: 'student',
     online: false,
     lastSeen: hoursAgo(52),
@@ -106,7 +108,7 @@ export const seedUsers: User[] = [
   {
     id: 'u-7',
     name: 'Northern Kite',
-    email: 'northern.kite@students.finki.mk',
+    email: 'northern.kite@students.finki.ukim.mk',
     role: 'student',
     online: false,
     lastSeen: hoursAgo(96),
@@ -121,12 +123,19 @@ export const seedRequests: EventRequest[] = [
   {
     id: 'r-1',
     title: 'Figma for developers',
+    description:
+      'A hands-on run through auto-layout, components and handoff, aimed at people who write the code rather than draw the screens.',
     requesterId: 'u-1',
-    date: dayFromNow(9),
-    startTime: '18:00',
-    endTime: '20:00',
+    category: 'Workshop',
+    dates: [
+      {id: 'rd-1a', date: dayFromNow(9), startTime: '18:00', endTime: '20:00'},
+      {id: 'rd-1b', date: dayFromNow(11), startTime: '18:00', endTime: '20:00'},
+      {id: 'rd-1c', date: dayFromNow(16), startTime: '17:30', endTime: '19:30'},
+    ],
     room: 'Classroom',
     catering: 'Coffee & snacks',
+    dietary: ['Vegetarian', 'Gluten-free'],
+    foodNotes: 'One attendee has a severe nut allergy.',
     expectedParticipants: 30,
     status: 'pending',
     submittedAt: hoursAgo(5),
@@ -134,12 +143,18 @@ export const seedRequests: EventRequest[] = [
   {
     id: 'r-2',
     title: 'Board games evening',
+    description:
+      'Bring a game or borrow one of ours. Long tables, no tournament, people drift in and out.',
     requesterId: 'u-4',
-    date: dayFromNow(12),
-    startTime: '19:30',
-    endTime: '23:00',
+    category: 'Social',
+    dates: [
+      {id: 'rd-2a', date: dayFromNow(12), startTime: '19:30', endTime: '23:00'},
+      {id: 'rd-2b', date: dayFromNow(19), startTime: '19:30', endTime: '23:00'},
+    ],
     room: 'Cafeteria',
     catering: 'None',
+    dietary: [],
+    foodNotes: '',
     expectedParticipants: 45,
     status: 'pending',
     submittedAt: hoursAgo(20),
@@ -147,12 +162,20 @@ export const seedRequests: EventRequest[] = [
   {
     id: 'r-3',
     title: 'Rust reading group',
+    description:
+      'We read one chapter of the book a week and argue about the borrow checker.',
     requesterId: 'u-2',
-    date: dayFromNow(4),
-    startTime: '17:00',
-    endTime: '18:30',
+    category: 'Community',
+    dates: [
+      {id: 'rd-3a', date: dayFromNow(4), startTime: '17:00', endTime: '18:30'},
+      {id: 'rd-3b', date: dayFromNow(6), startTime: '17:00', endTime: '18:30'},
+      {id: 'rd-3c', date: dayFromNow(7), startTime: '16:00', endTime: '17:30'},
+      {id: 'rd-3d', date: dayFromNow(11), startTime: '17:00', endTime: '18:30'},
+    ],
     room: 'Co-working floor',
     catering: 'None',
+    dietary: [],
+    foodNotes: '',
     expectedParticipants: 14,
     status: 'pending',
     submittedAt: hoursAgo(41),
@@ -160,12 +183,18 @@ export const seedRequests: EventRequest[] = [
   {
     id: 'r-4',
     title: 'CV clinic with alumni',
+    description:
+      'Graduates who now hire read your CV in front of you and say what they would skip.',
     requesterId: 'u-5',
-    date: dayFromNow(-3),
-    startTime: '16:00',
-    endTime: '19:00',
+    category: 'Talk',
+    dates: [
+      {id: 'rd-4a', date: dayFromNow(-3), startTime: '16:00', endTime: '19:00'},
+    ],
+    chosenDateId: 'rd-4a',
     room: 'Amphitheatre',
     catering: 'Full catering',
+    dietary: ['Vegetarian', 'Vegan'],
+    foodNotes: '',
     expectedParticipants: 80,
     status: 'approved',
     submittedAt: hoursAgo(180),
@@ -173,12 +202,16 @@ export const seedRequests: EventRequest[] = [
   {
     id: 'r-5',
     title: 'Crypto trading meetup',
+    description: 'Talks on trading strategy, with a sponsor.',
     requesterId: 'u-6',
-    date: dayFromNow(6),
-    startTime: '20:00',
-    endTime: '22:00',
+    category: 'Talk',
+    dates: [
+      {id: 'rd-5a', date: dayFromNow(6), startTime: '20:00', endTime: '22:00'},
+    ],
     room: 'Amphitheatre',
     catering: 'Full catering',
+    dietary: ['Vegetarian', 'Vegan'],
+    foodNotes: 'Two guests are coeliac.',
     expectedParticipants: 120,
     status: 'rejected',
     reason: 'Commercial promotion is not allowed in campus spaces.',
@@ -200,6 +233,10 @@ export const seedEvents: NetavilleEvent[] = [
     priceInfo: 'Free',
     cafeteriaDiscount: 20,
     catering: 'Coffee & snacks',
+    dietary: ['Vegetarian'],
+    foodNotes: '',
+    drinks: true,
+    openTo: 'Open to all',
     published: true,
   },
   {
@@ -215,6 +252,10 @@ export const seedEvents: NetavilleEvent[] = [
     priceInfo: '100 ден per team',
     cafeteriaDiscount: 10,
     catering: 'Coffee & snacks',
+    dietary: [],
+    foodNotes: '',
+    drinks: true,
+    openTo: 'Open to all',
     published: true,
   },
   {
@@ -229,6 +270,10 @@ export const seedEvents: NetavilleEvent[] = [
     priceInfo: 'Free',
     cafeteriaDiscount: 0,
     catering: 'None',
+    dietary: [],
+    foodNotes: '',
+    drinks: true,
+    openTo: 'Open to all',
     published: true,
   },
   {
@@ -243,6 +288,10 @@ export const seedEvents: NetavilleEvent[] = [
     priceInfo: 'Free',
     cafeteriaDiscount: 15,
     catering: 'None',
+    dietary: [],
+    foodNotes: '',
+    drinks: false,
+    openTo: 'Open to all',
     published: true,
   },
   {
@@ -257,9 +306,115 @@ export const seedEvents: NetavilleEvent[] = [
     priceInfo: 'Free',
     cafeteriaDiscount: 25,
     catering: 'Full catering',
+    dietary: [],
+    foodNotes: '',
+    drinks: false,
+    openTo: 'Students only',
     published: false,
     fromRequestId: 'r-4',
   },
+  {
+    id: 'e-6',
+    title: 'Private event',
+    description:
+      'This slot is booked for a private booking. The space is closed to drop-ins.',
+    date: dayFromNow(15),
+    startTime: '18:00',
+    endTime: '21:00',
+    room: 'Classroom',
+    category: 'Private',
+    priceInfo: 'Free',
+    cafeteriaDiscount: 0,
+    catering: 'None',
+    dietary: [],
+    foodNotes: '',
+    drinks: false,
+    openTo: 'Invite only',
+    published: true,
+  },
+];
+
+/**
+ * Who has already answered. The app's attendee counts are the tally of these,
+ * so a seeded count and the list people see can never drift apart.
+ */
+/**
+ * The loyalty cards, matching the names the mobile app's fixture already used
+ * so the two sides tell the same story before anyone scans anything.
+ *
+ * `stamps` is what is on the current card and `rewards` what is banked; the
+ * lifetime figure is the one the ranks table sorts on.
+ */
+export const seedCards: StampCard[] = [
+  {
+    userId: 'u-1',
+    stamps: 7,
+    lifetimeStamps: 312,
+    rewards: 2,
+    coffeesRedeemed: 29,
+    updatedAt: hoursAgo(2),
+  },
+  {
+    userId: 'u-2',
+    stamps: 3,
+    lifetimeStamps: 268,
+    rewards: 1,
+    coffeesRedeemed: 25,
+    updatedAt: hoursAgo(6),
+  },
+  {
+    userId: 'u-3',
+    stamps: 9,
+    lifetimeStamps: 204,
+    rewards: 0,
+    coffeesRedeemed: 20,
+    updatedAt: hoursAgo(30),
+  },
+  {
+    userId: 'u-4',
+    stamps: 1,
+    lifetimeStamps: 176,
+    rewards: 1,
+    coffeesRedeemed: 16,
+    updatedAt: hoursAgo(9),
+  },
+  {
+    userId: 'u-5',
+    stamps: 5,
+    lifetimeStamps: 119,
+    rewards: 0,
+    coffeesRedeemed: 11,
+    updatedAt: hoursAgo(50),
+  },
+  {
+    userId: 'u-6',
+    stamps: 2,
+    lifetimeStamps: 94,
+    rewards: 0,
+    coffeesRedeemed: 9,
+    updatedAt: hoursAgo(72),
+  },
+  {
+    userId: 'u-7',
+    stamps: 8,
+    lifetimeStamps: 71,
+    rewards: 0,
+    coffeesRedeemed: 6,
+    updatedAt: hoursAgo(96),
+  },
+];
+
+export const seedRsvps: Rsvp[] = [
+  {eventId: 'e-1', userId: 'u-1', state: 'going', at: dayFromNow(-2)},
+  {eventId: 'e-1', userId: 'u-2', state: 'going', at: dayFromNow(-2)},
+  {eventId: 'e-1', userId: 'u-3', state: 'going', at: dayFromNow(-1)},
+  {eventId: 'e-1', userId: 'u-4', state: 'maybe', at: dayFromNow(-1)},
+  {eventId: 'e-2', userId: 'u-1', state: 'going', at: dayFromNow(-3)},
+  {eventId: 'e-2', userId: 'u-5', state: 'going', at: dayFromNow(-3)},
+  {eventId: 'e-2', userId: 'u-6', state: 'maybe', at: dayFromNow(-1)},
+  {eventId: 'e-3', userId: 'u-2', state: 'going', at: dayFromNow(-1)},
+  {eventId: 'e-3', userId: 'u-7', state: 'maybe', at: dayFromNow(0)},
+  {eventId: 'e-4', userId: 'u-3', state: 'going', at: dayFromNow(0)},
 ];
 
 export const seedScreens: Screen[] = [
@@ -267,6 +422,7 @@ export const seedScreens: Screen[] = [
     id: 's-1',
     name: 'Cafeteria wall',
     location: 'Ground floor, above the counter',
+    theme: 'light',
     pairingCode: '418823',
     paired: true,
     online: true,
@@ -277,6 +433,7 @@ export const seedScreens: Screen[] = [
     id: 's-2',
     name: 'Amphitheatre foyer',
     location: 'Second floor entrance',
+    theme: 'dark',
     pairingCode: '905147',
     paired: true,
     online: false,
@@ -287,6 +444,7 @@ export const seedScreens: Screen[] = [
     id: 's-3',
     name: 'Co-working floor',
     location: 'Next to the lifts',
+    theme: 'auto',
     pairingCode: '260934',
     paired: false,
     online: false,
@@ -303,11 +461,13 @@ export const seedPlaylists: Playlist[] = [
     active: true,
     updatedAt: hoursAgo(3),
     slides: [
+      // Board, advert, board, advert — the shape a wall actually runs.
       {
         id: 'sl-1',
-        type: 'announcement',
-        eventId: 'e-1',
-        durationSec: 12,
+        type: 'upcoming',
+        headline: "What's on this week",
+        eventLimit: 5,
+        durationSec: 18,
         enabled: true,
       },
       {
@@ -344,9 +504,10 @@ export const seedPlaylists: Playlist[] = [
     slides: [
       {
         id: 'sl-5',
-        type: 'announcement',
-        eventId: 'e-3',
-        durationSec: 15,
+        type: 'upcoming',
+        headline: 'Coming up at Netaville',
+        eventLimit: 4,
+        durationSec: 20,
         enabled: true,
       },
       {

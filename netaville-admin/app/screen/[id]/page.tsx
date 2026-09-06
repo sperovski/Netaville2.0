@@ -15,7 +15,7 @@ export default async function ScreenPage({
   params: Promise<{id: string}>;
 }) {
   const {id} = await params;
-  const feed = buildScreenFeed(id);
+  const feed = await buildScreenFeed(id);
 
   if (feed === null) {
     return (

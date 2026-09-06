@@ -1,11 +1,11 @@
-import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {StatusBar} from 'expo-status-bar';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {AppIcon} from '@/components/AppIcon';
 import {BrandMotif} from '@/components/BrandMotif';
-import {GoogleMark} from '@/components/GoogleMark';
+import {MicrosoftMark} from '@/components/MicrosoftMark';
 import {LogoMark} from '@/components/LogoMark';
-import {RippleButton} from '@/components/RippleButton';
+import {PrimaryButton} from '@/components/PrimaryButton';
 import {useAuth} from '@/context/auth';
 import {colors, fonts, radii, spacing} from '@/theme';
 import type {AppIconName} from '@/data/appIcons';
@@ -13,6 +13,10 @@ import type {AppIconName} from '@/data/appIcons';
 /**
  * The way into the app. A brand panel carries the pitch, a white sheet slides
  * under it with the one thing to do — no form, no password, one account path.
+ *
+ * That path is the university's own Microsoft account, which is also how the
+ * app knows who is a student: UKIM issues every one of them a ukim.mk address,
+ * so signing in and being verified are the same act.
  */
 
 type Perk = {
@@ -49,7 +53,8 @@ const perks: Perk[] = [
 ];
 
 export default function SignInScreen() {
-  const {signIn, busy, error} = useAuth();
+  const {signIn, busy, ready, error, canUseTestSignIn, signInAsTestStudent} =
+    useAuth();
   const insets = useSafeAreaInsets();
 
   return (
@@ -84,7 +89,8 @@ export default function SignInScreen() {
             Coffee, events{'\n'}and a card that{'\n'}counts.
           </Text>
           <Text style={styles.sub}>
-            Free to join. One tap, no password to remember.
+            Sign in with your UKIM account. Free to join, nothing new to
+            remember.
           </Text>
         </View>
       </View>
@@ -105,27 +111,32 @@ export default function SignInScreen() {
         </View>
 
         <View style={styles.actions}>
-          <RippleButton
-            label={busy ? 'Signing in…' : 'Continue with Google'}
-            onPress={busy ? undefined : () => void signIn()}
-            icon={
-              busy ? (
-                <ActivityIndicator size="small" color={colors.textInk} />
-              ) : (
-                <GoogleMark size={19} />
-              )
-            }
-            background={colors.surface}
-            rippleColor="rgba(43, 31, 201, 0.09)"
-            labelColor={colors.textInk}
-            sheen={false}
+          <PrimaryButton
+            label={busy ? 'Signing in…' : 'Continue with Outlook'}
+            variant="secondary"
+            onPress={() => void signIn()}
+            loading={busy}
+            disabled={!ready}
+            icon={<MicrosoftMark size={19} />}
             style={styles.cta}
           />
 
           {error === null ? null : <Text style={styles.error}>{error}</Text>}
 
+          {/* Development only, and only until the Azure client id is set — see
+              canUseTestSignIn in context/auth. Keeps the app usable while the
+              app registration is still being sorted out. */}
+          {canUseTestSignIn ? (
+            <PrimaryButton
+              label="Continue as a test student"
+              variant="quiet"
+              onPress={() => void signInAsTestStudent()}
+            />
+          ) : null}
+
           <Text style={styles.legal}>
-            We only ever read your name and email address.
+            Use your UKIM address — the one ending in ukim.mk. We only ever read
+            your name and email address.
           </Text>
         </View>
       </View>
@@ -205,12 +216,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   actions: {gap: spacing.md},
-  cta: {
-    borderRadius: radii.control,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
+  cta: {borderColor: colors.border},
   error: {
     fontFamily: fonts.medium,
     fontSize: 13,

@@ -17,6 +17,7 @@ const categories: EventCategory[] = [
   'Talk',
   'Quiz',
   'Community',
+  'Private',
 ];
 
 const rooms = [
@@ -41,6 +42,10 @@ function blank(): NetavilleEvent {
     priceInfo: 'Free',
     cafeteriaDiscount: 0,
     catering: 'None',
+    dietary: [],
+    foodNotes: '',
+    drinks: false,
+    openTo: 'Open to all',
     published: false,
   };
 }

@@ -1,7 +1,7 @@
 import {redirect} from 'next/navigation';
 import {Shell} from '@/components/Shell';
 import {readSession} from '@/lib/auth';
-import {db} from '@/lib/store';
+import {listStudents} from '@/lib/store';
 import {StudentsView} from './StudentsView';
 
 export const metadata = {title: 'Students · Netaville Admin'};
@@ -13,12 +13,7 @@ export default async function StudentsPage() {
     redirect('/login');
   }
 
-  const students = db.users
-    .filter(user => user.role === 'student')
-    .sort(
-      (a, b) =>
-        Number(b.online) - Number(a.online) || a.name.localeCompare(b.name),
-    );
+  const students = await listStudents();
 
   return (
     <Shell

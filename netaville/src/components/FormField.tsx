@@ -22,6 +22,8 @@ type TextFieldProps = BaseProps & {
   placeholder?: string;
   leadingIcon?: ReactNode;
   keyboardType?: KeyboardTypeOptions;
+  /** Grows to a few lines, for a description or a note. */
+  multiline?: boolean;
 };
 
 /** A labelled text input in the shared white/rounded field style. */
@@ -32,12 +34,13 @@ export function FormField({
   placeholder,
   leadingIcon,
   keyboardType,
+  multiline = false,
   style,
 }: TextFieldProps) {
   return (
     <View style={[styles.group, style]}>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.field}>
+      <View style={[styles.field, multiline ? styles.fieldMultiline : null]}>
         {leadingIcon}
         <TextInput
           value={value}
@@ -45,7 +48,11 @@ export function FormField({
           placeholder={placeholder}
           placeholderTextColor={colors.textDim}
           keyboardType={keyboardType}
-          style={styles.input}
+          multiline={multiline}
+          // Without this the cursor sits centred on iOS and the first line
+          // drifts down as the box grows.
+          textAlignVertical={multiline ? 'top' : 'center'}
+          style={[styles.input, multiline ? styles.inputMultiline : null]}
         />
       </View>
     </View>
@@ -59,7 +66,13 @@ type SelectProps = BaseProps & {
 };
 
 /** A select that cycles through its options on tap — enough for a request form. */
-export function SelectField({label, value, options, onChange, style}: SelectProps) {
+export function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+  style,
+}: SelectProps) {
   const advance = () => {
     const index = options.indexOf(value);
     const next = options[(index + 1) % options.length];
@@ -76,7 +89,11 @@ export function SelectField({label, value, options, onChange, style}: SelectProp
         onPress={advance}
         style={({pressed}) => [styles.field, pressed ? styles.pressed : null]}>
         <Text style={[styles.input, styles.selectValue]}>{value}</Text>
-        <ChevronDown size={icon.size} strokeWidth={icon.strokeWidth} color={colors.textDim} />
+        <ChevronDown
+          size={icon.size}
+          strokeWidth={icon.strokeWidth}
+          color={colors.textDim}
+        />
       </Pressable>
     </View>
   );
@@ -108,6 +125,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg - 2,
     height: 50,
   },
+  fieldMultiline: {
+    height: undefined,
+    minHeight: 92,
+    alignItems: 'flex-start',
+    paddingVertical: spacing.md,
+  },
+  inputMultiline: {lineHeight: 21},
   input: {
     flex: 1,
     fontFamily: fonts.medium,

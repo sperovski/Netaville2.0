@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
 import {requireAdmin} from '@/lib/auth';
-import {db, logActivity} from '@/lib/store';
+import {deletePlaylist, updatePlaylist} from '@/lib/store';
 import type {Slide} from '@/lib/types';
 
 type Params = {params: Promise<{id: string}>};
@@ -12,11 +12,6 @@ export async function PATCH(request: Request, {params}: Params) {
   }
 
   const {id} = await params;
-  const playlist = db.playlists.find(candidate => candidate.id === id);
-  if (playlist === undefined) {
-    return NextResponse.json({error: 'No such playlist.'}, {status: 404});
-  }
-
   const body = (await request.json()) as {
     name?: string;
     slides?: Slide[];
@@ -24,32 +19,21 @@ export async function PATCH(request: Request, {params}: Params) {
     publish?: boolean;
   };
 
-  if (body.name !== undefined) {
-    playlist.name = body.name.trim();
-  }
-  if (body.slides !== undefined) {
-    playlist.slides = body.slides;
-  }
+  // Renaming, rewriting the slides and pushing to the wall all happen in one
+  // transaction, so the TV can never poll mid-rewrite.
+  const result = await updatePlaylist(id, {
+    ...(body.name === undefined ? {} : {name: body.name.trim()}),
+    ...(body.slides === undefined ? {} : {slides: body.slides}),
+    ...(body.publish === undefined ? {} : {publish: body.publish}),
+  });
 
-  if (body.publish === true) {
-    const screen = db.screens.find(
-      candidate => candidate.id === playlist.screenId,
-    );
-    if (screen === undefined) {
-      return NextResponse.json({error: 'No such screen.'}, {status: 404});
-    }
-    // Only one playlist plays per screen, so stand the others down.
-    for (const other of db.playlists) {
-      if (other.screenId === playlist.screenId) {
-        other.active = other.id === playlist.id;
-      }
-    }
-    screen.activePlaylistId = playlist.id;
-    logActivity('screen', `Pushed “${playlist.name}” to ${screen.name}`);
+  if (result === null) {
+    return NextResponse.json({error: 'No such playlist.'}, {status: 404});
   }
-
-  playlist.updatedAt = new Date().toISOString();
-  return NextResponse.json({playlist});
+  if ('error' in result) {
+    return NextResponse.json({error: 'No such screen.'}, {status: 404});
+  }
+  return NextResponse.json({playlist: result});
 }
 
 export async function DELETE(_request: Request, {params}: Params) {
@@ -59,17 +43,11 @@ export async function DELETE(_request: Request, {params}: Params) {
   }
 
   const {id} = await params;
-  const index = db.playlists.findIndex(candidate => candidate.id === id);
-  if (index === -1) {
+  // The screen's pointer at it is cleared by the foreign key, and its slides
+  // go by cascade.
+  const removed = await deletePlaylist(id);
+  if (removed === null) {
     return NextResponse.json({error: 'No such playlist.'}, {status: 404});
-  }
-
-  const [removed] = db.playlists.splice(index, 1);
-  const screen = db.screens.find(
-    candidate => candidate.id === removed!.screenId,
-  );
-  if (screen?.activePlaylistId === removed!.id) {
-    screen.activePlaylistId = null;
   }
   return NextResponse.json({ok: true});
 }

@@ -1,7 +1,7 @@
 import {redirect} from 'next/navigation';
 import {Shell} from '@/components/Shell';
 import {readSession} from '@/lib/auth';
-import {db} from '@/lib/store';
+import {listEvents} from '@/lib/store';
 import {EventsView} from './EventsView';
 
 export const metadata = {title: 'Events · Netaville Admin'};
@@ -13,7 +13,7 @@ export default async function EventsPage() {
     redirect('/login');
   }
 
-  const events = [...db.events].sort((a, b) => a.date.localeCompare(b.date));
+  const events = await listEvents();
 
   return (
     <Shell

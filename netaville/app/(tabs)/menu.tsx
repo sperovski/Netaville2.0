@@ -48,7 +48,7 @@ export default function MenuScreen() {
       <View style={styles.header}>
         <Text style={typography.display}>Menu</Text>
         <Text style={typography.body}>
-          Every order adds stamps to your card.
+          Every coffee order adds stamps to your card.
         </Text>
         <View style={styles.toggleRow}>
           <Chip
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   stampBadge: {
     width: 26,
     height: 26,
-    borderRadius: 8,
+    borderRadius: radii.card,
     backgroundColor: colors.blueTintBg,
     alignItems: 'center',
     justifyContent: 'center',

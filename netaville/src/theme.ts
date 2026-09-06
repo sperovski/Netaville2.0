@@ -44,12 +44,24 @@ export const colors = {
   danger: '#E0553F',
 } as const;
 
+/**
+ * One radius, everywhere.
+ *
+ * Cards, pills, buttons, inputs and icon buttons all use the same corner, so
+ * nothing on a screen disagrees with anything next to it. The names are kept
+ * as aliases of the single value rather than collapsed into one, because they
+ * still say what a call site is — and if a future design wants a smaller inner
+ * radius, there is a name to change rather than a hunt for 16s.
+ */
+const RADIUS = 16;
+
 export const radii = {
-  card: 16,
-  cardSm: 14,
-  control: 12,
-  iconButton: 11,
-  chip: 9999,
+  card: RADIUS,
+  cardSm: RADIUS,
+  control: RADIUS,
+  iconButton: RADIUS,
+  /** Pills match the cards; this is no longer a full round. */
+  chip: RADIUS,
 } as const;
 
 export const spacing = {

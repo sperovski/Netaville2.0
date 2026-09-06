@@ -9,7 +9,6 @@ import {Screen} from '@/components/Screen';
 import {SectionLabel} from '@/components/SectionLabel';
 import {useRsvp} from '@/context/rsvp';
 import {
-  events,
   formatEventDate,
   formatMonth,
   parseIsoDate,
@@ -25,7 +24,9 @@ const WEEK_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const dotColor: Record<EventCategory, string> = {
   Workshop: colors.cyan,
   Social: colors.coral,
+  Talk: colors.brandBlue,
   Quiz: colors.gold,
+  Community: colors.coralText,
   Private: colors.textDim,
 };
 
@@ -51,7 +52,7 @@ function buildMonth(cursor: Date): Cell[] {
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const {isGoing, toggleRsvp} = useRsvp();
+  const {events, isGoing} = useRsvp();
 
   const today = todayIso();
   const [cursor, setCursor] = useState(() => {
@@ -64,20 +65,29 @@ export default function CalendarScreen() {
   const byDay = useMemo(() => {
     const map = new Map<string, EventCategory[]>();
     for (const event of events) {
-      map.set(event.isoDate, [...(map.get(event.isoDate) ?? []), event.category]);
+      map.set(event.isoDate, [
+        ...(map.get(event.isoDate) ?? []),
+        event.category,
+      ]);
     }
     return map;
-  }, []);
+  }, [events]);
 
   const dayEvents = events.filter(event => event.isoDate === selected);
   const shiftMonth = (delta: number) =>
-    setCursor(current => new Date(current.getFullYear(), current.getMonth() + delta, 1));
+    setCursor(
+      current => new Date(current.getFullYear(), current.getMonth() + delta, 1),
+    );
 
   return (
     <Screen scroll>
       <View style={styles.header}>
         <IconButton accessibilityLabel="Go back" onPress={() => router.back()}>
-          <ArrowLeft size={19} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
+          <ArrowLeft
+            size={19}
+            strokeWidth={icon.strokeWidth}
+            color={colors.brandBlue}
+          />
         </IconButton>
       </View>
 
@@ -98,15 +108,29 @@ export default function CalendarScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Previous month"
                 onPress={() => shiftMonth(-1)}
-                style={({pressed}) => [styles.navButton, pressed ? styles.pressed : null]}>
-                <ChevronLeft size={18} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
+                style={({pressed}) => [
+                  styles.navButton,
+                  pressed ? styles.pressed : null,
+                ]}>
+                <ChevronLeft
+                  size={18}
+                  strokeWidth={icon.strokeWidth}
+                  color={colors.brandBlue}
+                />
               </Pressable>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Next month"
                 onPress={() => shiftMonth(1)}
-                style={({pressed}) => [styles.navButton, pressed ? styles.pressed : null]}>
-                <ChevronRight size={18} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
+                style={({pressed}) => [
+                  styles.navButton,
+                  pressed ? styles.pressed : null,
+                ]}>
+                <ChevronRight
+                  size={18}
+                  strokeWidth={icon.strokeWidth}
+                  color={colors.brandBlue}
+                />
               </Pressable>
             </View>
           </View>
@@ -150,7 +174,10 @@ export default function CalendarScreen() {
                     {categories.slice(0, 3).map((category, index) => (
                       <View
                         key={`${cell.iso}-${index}`}
-                        style={[styles.dot, {backgroundColor: dotColor[category]}]}
+                        style={[
+                          styles.dot,
+                          {backgroundColor: dotColor[category]},
+                        ]}
                       />
                     ))}
                   </View>
@@ -175,7 +202,6 @@ export default function CalendarScreen() {
                 event={event}
                 going={isGoing(event.id)}
                 onPress={() => router.push(`/event/${event.id}`)}
-                onToggleRsvp={() => toggleRsvp(event.id)}
               />
             ))}
           </View>
@@ -186,10 +212,22 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.lg},
-  intro: {paddingHorizontal: spacing.xl, gap: spacing.xs, paddingBottom: spacing.xl},
+  header: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  intro: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.xs,
+    paddingBottom: spacing.xl,
+  },
   introRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
-  section: {paddingHorizontal: spacing.xl, gap: spacing.md, paddingBottom: spacing.xl},
+  section: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,

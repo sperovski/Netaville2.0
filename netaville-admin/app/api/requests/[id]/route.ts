@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
 import {requireAdmin} from '@/lib/auth';
-import {db, logActivity, newId, userById} from '@/lib/store';
+import {approveRequest, rejectRequest, requestById} from '@/lib/store';
 import type {NetavilleEvent} from '@/lib/types';
 
 type Params = {params: Promise<{id: string}>};
@@ -13,24 +13,20 @@ export async function PATCH(request: Request, {params}: Params) {
   }
 
   const {id} = await params;
-  const entry = db.requests.find(candidate => candidate.id === id);
-  if (entry === undefined) {
-    return NextResponse.json({error: 'No such request.'}, {status: 404});
-  }
-
   const body = (await request.json()) as {
     action?: 'approve' | 'reject';
     reason?: string;
+    /** Which proposed slot to run it on; defaults to the organiser's first. */
+    chosenDateId?: string;
     category?: NetavilleEvent['category'];
     priceInfo?: string;
     cafeteriaDiscount?: number;
+    drinks?: boolean;
+    openTo?: string;
   };
 
-  if (entry.status !== 'pending') {
-    return NextResponse.json(
-      {error: `This request was already ${entry.status}.`},
-      {status: 409},
-    );
+  if (body.action !== 'approve' && body.action !== 'reject') {
+    return NextResponse.json({error: 'Unknown action.'}, {status: 400});
   }
 
   if (body.action === 'reject') {
@@ -41,35 +37,37 @@ export async function PATCH(request: Request, {params}: Params) {
         {status: 400},
       );
     }
-    entry.status = 'rejected';
-    entry.reason = reason;
-    logActivity('rejection', `Rejected “${entry.title}”`);
-    return NextResponse.json({request: entry});
+    const rejected = await rejectRequest(id, reason);
+    return rejected === null
+      ? notPending(id)
+      : NextResponse.json({request: rejected});
   }
 
-  if (body.action !== 'approve') {
-    return NextResponse.json({error: 'Unknown action.'}, {status: 400});
+  const approved = await approveRequest(id, body);
+  if (approved === null) {
+    return notPending(id);
   }
+  if ('error' in approved) {
+    return NextResponse.json(
+      {error: 'That date is not one of the ones proposed.'},
+      {status: 400},
+    );
+  }
+  return NextResponse.json(approved);
+}
 
-  entry.status = 'approved';
-  const created: NetavilleEvent = {
-    id: newId('e'),
-    title: entry.title,
-    description: `Requested by ${userById(entry.requesterId)?.name ?? 'a student'}.`,
-    date: entry.date,
-    startTime: entry.startTime,
-    endTime: entry.endTime,
-    room: entry.room,
-    category: body.category ?? 'Community',
-    priceInfo: body.priceInfo ?? 'Free',
-    cafeteriaDiscount: body.cafeteriaDiscount ?? 0,
-    catering: entry.catering,
-    // Approving puts it straight in the students' feed, which is the point.
-    published: true,
-    fromRequestId: entry.id,
-  };
-  db.events.push(created);
-  logActivity('approval', `Approved “${entry.title}” and published the event`);
-
-  return NextResponse.json({request: entry, event: created});
+/**
+ * Both writes decide pending-ness inside the UPDATE, so a null answer means
+ * either "no such request" or "someone else got there first" — which one is
+ * only knowable by looking afterwards.
+ */
+async function notPending(id: string): Promise<NextResponse> {
+  const entry = await requestById(id);
+  if (entry === null) {
+    return NextResponse.json({error: 'No such request.'}, {status: 404});
+  }
+  return NextResponse.json(
+    {error: `This request was already ${entry.status}.`},
+    {status: 409},
+  );
 }

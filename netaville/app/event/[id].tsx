@@ -1,7 +1,9 @@
+import {useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {ArrowLeft, Coffee, CupSoda} from 'lucide-react-native';
+import {ArrowLeft, CalendarDays, Check, Tag} from 'lucide-react-native';
+import {ConfirmModal} from '@/components/ConfirmModal';
 import {AvatarStack} from '@/components/AvatarStack';
 import {GhostButton} from '@/components/GhostButton';
 import {IconButton} from '@/components/IconButton';
@@ -10,25 +12,24 @@ import {Screen} from '@/components/Screen';
 import {SectionLabel} from '@/components/SectionLabel';
 import {StatStrip} from '@/components/StatStrip';
 import {useRsvp} from '@/context/rsvp';
-import {formatEventDate, formatLongDate, getEventById} from '@/data/events';
-import {colors, fonts, icon, spacing, type as typography} from '@/theme';
+import {formatEventDate, formatLongDate} from '@/data/events';
+import {colors, fonts, icon, radii, spacing, type as typography} from '@/theme';
 
 const ACTION_BAR_HEIGHT = 88;
 
-function Marker({tone, label}: {tone: string; label: string}) {
+function Marker({
+  tone,
+  label,
+  children,
+}: {
+  tone: string;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.marker}>
-      <View style={[styles.markerDot, {backgroundColor: tone}]} />
-      <Text style={[styles.markerText, {color: tone}]}>{label}</Text>
-    </View>
-  );
-}
-
-function Perk({tone, label, children}: {tone: string; label: string; children: React.ReactNode}) {
-  return (
-    <View style={styles.perk}>
       {children}
-      <Text style={[styles.perkText, {color: tone}]}>{label}</Text>
+      <Text style={[styles.markerText, {color: tone}]}>{label}</Text>
     </View>
   );
 }
@@ -37,9 +38,17 @@ export default function EventDetailScreen() {
   const {id} = useLocalSearchParams<{id: string}>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const {isGoing, goingCount, toggleRsvp} = useRsvp();
+  const {events, isGoing, goingCount, setGoing} = useRsvp();
+  // Which confirmation is open, if either.
+  const [asking, setAsking] = useState<'going' | 'cancel' | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
-  const event = id === undefined ? undefined : getEventById(id);
+  // From the live feed, so the detail and the card behind it never disagree.
+  const event =
+    id === undefined
+      ? undefined
+      : events.find(candidate => candidate.id === id);
 
   if (!event) {
     return (
@@ -53,12 +62,31 @@ export default function EventDetailScreen() {
   const going = isGoing(event.id);
   const attending = goingCount(event.id);
 
+  // Confirmed rather than toggled. Saying yes puts your name in front of the
+  // organisers and counts against the room, so a mis-tap on a scrolling list
+  // should not be able to do it silently — and taking it back asks too, since
+  // that is the half people do by accident on the way past.
+  const answer = async (next: boolean) => {
+    setAsking(null);
+    setSaving(true);
+    const result = await setGoing(event.id, next);
+    setSaving(false);
+    // Only a failure has anything to say; success is visible in the bar.
+    setProblem(result.ok ? null : result.message);
+  };
+
   return (
     <View style={styles.root}>
       <Screen scroll bottomInset={ACTION_BAR_HEIGHT + insets.bottom}>
         <View style={styles.header}>
-          <IconButton accessibilityLabel="Go back" onPress={() => router.back()}>
-            <ArrowLeft size={19} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
+          <IconButton
+            accessibilityLabel="Go back"
+            onPress={() => router.back()}>
+            <ArrowLeft
+              size={19}
+              strokeWidth={icon.strokeWidth}
+              color={colors.brandBlue}
+            />
           </IconButton>
         </View>
 
@@ -66,9 +94,20 @@ export default function EventDetailScreen() {
           <View style={styles.markers}>
             <Marker
               tone={colors.coralText}
-              label={`${formatEventDate(event.isoDate)} · ${event.startTime}`}
-            />
-            <Marker tone={colors.cyanText} label={event.category} />
+              label={`${formatEventDate(event.isoDate)} · ${event.startTime}`}>
+              <CalendarDays
+                size={13}
+                strokeWidth={icon.strokeWidth}
+                color={colors.coralText}
+              />
+            </Marker>
+            <Marker tone={colors.cyanText} label={event.category}>
+              <Tag
+                size={13}
+                strokeWidth={icon.strokeWidth}
+                color={colors.cyanText}
+              />
+            </Marker>
           </View>
           <Text style={styles.title}>{event.title}</Text>
           <Text style={styles.when}>
@@ -96,55 +135,79 @@ export default function EventDetailScreen() {
           <View style={styles.attendees}>
             <AvatarStack count={attending} seedKey={event.id} size={34} />
             <Text style={styles.attendeeText}>
-              {attending} going · {event.attendeesMaybe} maybe · {event.openTo.toLowerCase()}
+              {attending} going · {event.attendeesMaybe} maybe ·{' '}
+              {event.openTo.toLowerCase()}
             </Text>
           </View>
         </View>
 
         <View style={styles.block}>
           <SectionLabel>About</SectionLabel>
-          <Text style={[typography.body, styles.description]}>{event.description}</Text>
+          <Text style={[typography.body, styles.description]}>
+            {event.description}
+          </Text>
         </View>
-
-        {event.catering || event.drinks ? (
-          <View style={styles.block}>
-            <SectionLabel>What&apos;s included</SectionLabel>
-            <View style={styles.perks}>
-              {event.catering ? (
-                <Perk tone={colors.coralText} label="Catering included">
-                  <Coffee size={15} strokeWidth={icon.strokeWidth} color={colors.coralText} />
-                </Perk>
-              ) : null}
-              {event.drinks ? (
-                <Perk tone={colors.cyanText} label="Drinks from the cafeteria">
-                  <CupSoda size={15} strokeWidth={icon.strokeWidth} color={colors.cyanText} />
-                </Perk>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
       </Screen>
 
-      <View style={[styles.actionBar, {paddingBottom: insets.bottom + spacing.md}]}>
-        <GhostButton
-          label="Can't make it"
-          style={styles.action}
-          onPress={() => {
-            if (going) {
-              toggleRsvp(event.id);
-            }
-          }}
-        />
-        <PrimaryButton
-          label={going ? 'Going' : "I'm going"}
-          style={styles.action}
-          onPress={() => {
-            if (!going) {
-              toggleRsvp(event.id);
-            }
-          }}
-        />
+      <View
+        style={[styles.actionBar, {paddingBottom: insets.bottom + spacing.md}]}>
+        {problem === null ? null : (
+          <Text style={styles.problem}>{problem}</Text>
+        )}
+        <View style={styles.actionRow}>
+          {going ? (
+            <>
+              {/* Once you are in, the bar states it rather than offering it
+                again — the only thing left to do is change your mind. */}
+              <View style={styles.joined}>
+                <View style={styles.joinedCheck}>
+                  <Check
+                    size={13}
+                    strokeWidth={2.6}
+                    color={colors.textOnBrand}
+                  />
+                </View>
+                <Text style={styles.joinedText}>You&apos;re going</Text>
+              </View>
+              <GhostButton
+                label="Can't make it"
+                style={styles.action}
+                onPress={() => setAsking('cancel')}
+              />
+            </>
+          ) : (
+            <PrimaryButton
+              label="I'm going"
+              full
+              loading={saving}
+              style={styles.action}
+              onPress={() => setAsking('going')}
+            />
+          )}
+        </View>
       </View>
+
+      <ConfirmModal
+        visible={asking === 'going'}
+        title="You're going?"
+        body={`We'll count you in for “${event.title}” on ${formatLongDate(event.isoDate)} at ${event.startTime}.`}
+        confirmLabel="I'm going"
+        cancelLabel="Not yet"
+        icon={<Check size={20} strokeWidth={2.4} color={colors.brandBlue} />}
+        onConfirm={() => void answer(true)}
+        onCancel={() => setAsking(null)}
+      />
+
+      <ConfirmModal
+        visible={asking === 'cancel'}
+        title="Can't make it?"
+        body={`We'll take you off the list for “${event.title}”.`}
+        confirmLabel="Can't make it"
+        cancelLabel="Stay going"
+        destructive
+        onConfirm={() => void answer(false)}
+        onCancel={() => setAsking(null)}
+      />
     </View>
   );
 }
@@ -152,11 +215,18 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: colors.bg},
   missing: {padding: spacing.xl, gap: spacing.lg, justifyContent: 'center'},
-  header: {paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.lg},
-  block: {paddingHorizontal: spacing.xl, gap: spacing.md, paddingBottom: spacing.xl},
+  header: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  block: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
   markers: {flexDirection: 'row', alignItems: 'center', gap: spacing.lg},
   marker: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  markerDot: {width: 7, height: 7, borderRadius: 1.5},
   markerText: {
     fontFamily: fonts.bold,
     fontSize: 11,
@@ -187,24 +257,50 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   description: {fontSize: 14.5, lineHeight: 23},
-  perks: {gap: spacing.sm},
-  perk: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
-  perkText: {
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-  },
   actionBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     backgroundColor: colors.bg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  actionRow: {flexDirection: 'row', gap: spacing.md},
+  problem: {
+    fontFamily: fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.danger,
+  },
   action: {flex: 1},
+  joined: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    borderColor: colors.blueTintBorder,
+    backgroundColor: colors.blueTintBg,
+    paddingVertical: 13,
+  },
+  joinedCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.brandBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinedText: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    letterSpacing: -0.1,
+    color: colors.brandBlue,
+  },
 });

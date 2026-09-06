@@ -33,6 +33,15 @@ const typeTone = {
   poster: 'cyan',
   announcement: 'brand',
   marketing: 'gold',
+  upcoming: 'success',
+} as const;
+
+/** What each type is called on the card, where 'upcoming' reads as jargon. */
+const typeLabel = {
+  poster: 'poster',
+  announcement: 'event',
+  marketing: 'commercial',
+  upcoming: 'events board',
 } as const;
 
 export function SlideCard({
@@ -106,7 +115,9 @@ export function SlideCard({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <StatusPill tone={typeTone[slide.type]}>{slide.type}</StatusPill>
+          <StatusPill tone={typeTone[slide.type]}>
+            {typeLabel[slide.type]}
+          </StatusPill>
           {slide.enabled ? null : (
             <StatusPill tone="neutral">Disabled</StatusPill>
           )}
@@ -115,7 +126,9 @@ export function SlideCard({
         <p className="mt-1.5 truncate text-[13.5px] font-bold text-ink">
           {slide.type === 'announcement'
             ? (event?.title ?? 'Event was deleted')
-            : (slide.headline ?? 'Untitled slide')}
+            : slide.type === 'upcoming'
+              ? (slide.headline ?? "What's on")
+              : (slide.headline ?? 'Untitled slide')}
         </p>
         <p className="truncate text-[12px] text-muted">
           {slide.durationSec}s

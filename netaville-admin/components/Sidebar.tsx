@@ -24,6 +24,11 @@ const items: Item[] = [
     icon: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm-1 5h16M8 3v4m8-4v4',
   },
   {
+    href: '/counter',
+    label: 'Counter',
+    icon: 'M4 4h16v4H4V4Zm2 4v12h12V8M9 12h6',
+  },
+  {
     href: '/students',
     label: 'Students',
     icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8a8 8 0 0 1 16 0',

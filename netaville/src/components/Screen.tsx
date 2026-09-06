@@ -1,5 +1,11 @@
 import type {ReactNode} from 'react';
-import {ScrollView, StyleSheet, View, type ViewStyle} from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  type ScrollViewProps,
+  type ViewStyle,
+} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {colors, spacing} from '@/theme';
 
@@ -11,6 +17,8 @@ type Props = {
   edgeTop?: boolean;
   /** Extra bottom padding, e.g. to clear a sticky action bar. */
   bottomInset?: number;
+  /** Pull-to-refresh, for the screens backed by the live feed. */
+  refreshControl?: ScrollViewProps['refreshControl'];
   contentStyle?: ViewStyle;
 };
 
@@ -19,6 +27,7 @@ export function Screen({
   scroll = false,
   edgeTop = true,
   bottomInset = 0,
+  refreshControl,
   contentStyle,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -34,7 +43,8 @@ export function Screen({
           style={StyleSheet.absoluteFill}
           contentContainerStyle={[styles.content, padding, contentStyle]}
           showsVerticalScrollIndicator={false}
-          contentInsetAdjustmentBehavior="never">
+          contentInsetAdjustmentBehavior="never"
+          refreshControl={refreshControl}>
           {children}
         </ScrollView>
       </View>

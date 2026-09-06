@@ -5,7 +5,13 @@ import {Shell} from '@/components/Shell';
 import {StatusPill} from '@/components/StatusPill';
 import {readSession} from '@/lib/auth';
 import {formatDate, isToday, timeAgo} from '@/lib/format';
-import {db, refreshScreenPresence} from '@/lib/store';
+import {
+  countPendingRequests,
+  countScreens,
+  countStudents,
+  listUpcomingEvents,
+  recentActivity,
+} from '@/lib/store';
 
 export const metadata = {title: 'Dashboard · Netaville Admin'};
 export const dynamic = 'force-dynamic';
@@ -59,21 +65,15 @@ export default async function DashboardPage() {
   if (admin === null) {
     redirect('/login');
   }
-  refreshScreenPresence();
 
-  const today = new Date().toISOString().slice(0, 10);
-  const pending = db.requests.filter(entry => entry.status === 'pending');
-  const upcoming = db.events
-    .filter(event => event.published && event.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const studentsOnline = db.users.filter(
-    user => user.role === 'student' && user.online && user.active,
-  );
-  const students = db.users.filter(user => user.role === 'student');
-  const paired = db.screens.filter(screen => screen.paired);
-  const playing = paired.filter(
-    screen => screen.online && screen.activePlaylistId !== null,
-  );
+  // Six independent reads, so they go out together rather than in a chain.
+  const [pending, upcoming, students, screens, activity] = await Promise.all([
+    countPendingRequests(),
+    listUpcomingEvents(),
+    countStudents(),
+    countScreens(),
+    recentActivity(7),
+  ]);
 
   return (
     <Shell
@@ -83,8 +83,8 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-4 gap-5">
         <Stat
           label="Pending requests"
-          value={pending.length}
-          hint={pending.length === 0 ? 'Nothing waiting' : 'Waiting on a decision'}
+          value={pending}
+          hint={pending === 0 ? 'Nothing waiting' : 'Waiting on a decision'}
           href="/requests"
           tone="coral"
         />
@@ -97,16 +97,16 @@ export default async function DashboardPage() {
         />
         <Stat
           label="Students online"
-          value={studentsOnline.length}
-          hint={`of ${students.length} registered`}
+          value={students.online}
+          hint={`of ${students.total} registered`}
           href="/students"
           tone="cyan"
         />
         <Stat
           label="Screens playing"
-          value={`${playing.length}/${paired.length}`}
+          value={`${screens.playing}/${screens.paired}`}
           hint={
-            playing.length === paired.length
+            screens.playing === screens.paired
               ? 'All paired screens live'
               : 'Some screens are dark'
           }
@@ -174,7 +174,7 @@ export default async function DashboardPage() {
             <CardHeader title="Recent activity" hint="Across the whole panel." />
           </div>
           <ul className="divide-y divide-line/70 border-t border-line">
-            {db.activity.slice(0, 7).map(entry => (
+            {activity.map(entry => (
               <li key={entry.id} className="flex items-start gap-3 px-5 py-3">
                 <span className="pt-0.5">
                   <StatusPill tone={activityTone[entry.kind]}>

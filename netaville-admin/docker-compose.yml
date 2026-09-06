@@ -1,0 +1,26 @@
+# Local Postgres for development.
+#
+# Deliberately the same shape as the Neon database it will move to: same user,
+# same database name, same schema file. Going live should be a change of
+# DATABASE_URL and nothing else.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: netaville-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sperovski
+      POSTGRES_PASSWORD: magii11022
+      POSTGRES_DB: netaville
+    ports:
+      - '5432:5432'
+    volumes:
+      - netaville-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sperovski -d netaville']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  netaville-pgdata:
