@@ -1,4 +1,4 @@
-# Нетавил · Netaville — Mobile
+# Netaville — Mobile
 
 ![React Native](https://img.shields.io/badge/React%20Native-0.7x-61DAFB?logo=react)
 ![Ruby](https://img.shields.io/badge/Ruby-3.x-CC342D?logo=ruby)
