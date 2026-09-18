@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {BrandMark} from './BrandMark';
+import {LogoMark} from './LogoMark';
 
 type Item = {href: string; label: string; icon: string};
 
@@ -48,7 +48,7 @@ export function Sidebar() {
       <Link
         href="/dashboard"
         className="flex items-center gap-2.5 border-b border-line px-5 py-[18px]">
-        <BrandMark />
+        <LogoMark size={22} />
         <span className="text-[15px] font-extrabold tracking-tight text-ink">
           Netaville
           <span className="ml-1.5 rounded-full bg-brand-tint px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-brand">

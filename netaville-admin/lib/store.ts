@@ -1,5 +1,6 @@
 import type {PoolClient} from 'pg';
 import {query, queryOne, transaction} from './db';
+import {isUkimEmail} from './ukim';
 import type {
   Activity,
   ActivityKind,
@@ -209,6 +210,8 @@ type ScreenRow = {
   paired: boolean;
   online: boolean;
   last_seen: Date;
+  enrolled: boolean;
+  device_info: Record<string, unknown>;
   active_playlist_id: string | null;
 };
 
@@ -222,12 +225,16 @@ function toScreen(row: ScreenRow): Screen {
     paired: row.paired,
     online: row.online,
     lastSeen: row.last_seen.toISOString(),
+    enrolled: row.enrolled,
+    deviceInfo: row.device_info ?? {},
     activePlaylistId: row.active_playlist_id,
   };
 }
 
 const SCREEN_COLUMNS = `
   id, name, location, theme, pairing_code, paired, last_seen, active_playlist_id,
+  device_info,
+  (device_token_hash IS NOT NULL) AS enrolled,
   (last_seen > now() - ${SCREEN_ONLINE}) AS online`;
 
 type SlideRow = {
@@ -236,6 +243,8 @@ type SlideRow = {
   position: number;
   type: Slide['type'];
   image_url: string | null;
+  video_url: string | null;
+  canva_design_id: string | null;
   event_id: string | null;
   headline: string | null;
   cta: string | null;
@@ -251,6 +260,10 @@ function toSlide(row: SlideRow): Slide {
     id: row.id,
     type: row.type,
     ...(row.image_url === null ? {} : {imageUrl: row.image_url}),
+    ...(row.video_url === null ? {} : {videoUrl: row.video_url}),
+    ...(row.canva_design_id === null
+      ? {}
+      : {canvaDesignId: row.canva_design_id}),
     ...(row.event_id === null ? {} : {eventId: row.event_id}),
     ...(row.headline === null ? {} : {headline: row.headline}),
     ...(row.cta === null ? {} : {cta: row.cta}),
@@ -341,7 +354,7 @@ export async function listStudents(search = ''): Promise<User[]> {
   const term = search.trim();
   const rows = await query<UserRow>(
     `SELECT ${USER_COLUMNS} FROM users
-     WHERE role = 'student'
+     WHERE role IN ('student', 'member')
        AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
      ORDER BY (last_seen > now() - ${STUDENT_ONLINE}) DESC, name`,
     [term],
@@ -358,7 +371,7 @@ export async function countStudents(): Promise<{
             count(*) FILTER (
               WHERE active AND last_seen > now() - ${STUDENT_ONLINE}
             )::text AS online
-     FROM users WHERE role = 'student'`,
+     FROM users WHERE role IN ('student', 'member')`,
   );
   return {total: Number(row?.total ?? 0), online: Number(row?.online ?? 0)};
 }
@@ -368,18 +381,57 @@ export async function touchUser(id: string): Promise<void> {
   await query('UPDATE users SET last_seen = now() WHERE id = $1', [id]);
 }
 
-export async function createStudent(input: {
-  id: string;
+/**
+ * Creates an app account once its email has been verified (see
+ * lib/emailVerification.ts). Every app account now has a password; the only
+ * thing that varies is the role, and the address decides it — a ukim.mk
+ * address is a student, everyone else is a member. That single line is the
+ * whole of "how the app knows who is a student" since the Microsoft sign-in
+ * was dropped.
+ *
+ * The password arrives already scrypt-hashed; this layer never sees the plain
+ * text. Throws a plain "email exists" Error on the unique-index violation, for
+ * the route to turn into a 409 — the window is a verification finishing at the
+ * same moment as another registration for the same address.
+ */
+export async function createVerifiedUser(input: {
   name: string;
   email: string;
+  passwordHash: string;
 }): Promise<User> {
-  const row = await queryOne<UserRow>(
-    `INSERT INTO users (id, name, email, role, last_seen, joined_at)
-     VALUES ($1, $2, $3, 'student', now(), current_date)
-     RETURNING ${USER_COLUMNS}`,
-    [input.id, input.name, input.email],
+  const role: User['role'] = isUkimEmail(input.email) ? 'student' : 'member';
+  try {
+    const row = await queryOne<UserRow>(
+      `INSERT INTO users (id, name, email, role, password_hash, last_seen, joined_at)
+       VALUES ($1, $2, $3, $4, $5, now(), current_date)
+       RETURNING ${USER_COLUMNS}`,
+      [newId('u'), input.name, input.email, role, input.passwordHash],
+    );
+    return toUser(row!);
+  } catch (caught) {
+    if (
+      caught !== null &&
+      typeof caught === 'object' &&
+      'code' in caught &&
+      caught.code === '23505'
+    ) {
+      throw new Error('email exists');
+    }
+    throw caught;
+  }
+}
+
+/**
+ * The stored password hash for an email, or null if there is no account or it
+ * has no password (a student or admin). Kept apart from userByEmail so the
+ * hash never rides along on the User shape the rest of the app passes around.
+ */
+export async function passwordHashByEmail(email: string): Promise<string | null> {
+  const row = await queryOne<{password_hash: string | null}>(
+    `SELECT password_hash FROM users WHERE lower(email) = lower($1)`,
+    [email.trim()],
   );
-  return toUser(row!);
+  return row?.password_hash ?? null;
 }
 
 export async function setStudentActive(
@@ -388,7 +440,7 @@ export async function setStudentActive(
 ): Promise<User | null> {
   const row = await queryOne<UserRow>(
     `UPDATE users SET active = $2
-     WHERE id = $1 AND role = 'student'
+     WHERE id = $1 AND role IN ('student', 'member')
      RETURNING ${USER_COLUMNS}`,
     [id, active],
   );
@@ -935,6 +987,47 @@ export async function touchScreen(id: string): Promise<Screen | null> {
   return row === null ? null : toScreen(row);
 }
 
+/**
+ * The screen a device token belongs to. The lookup is by hash — the plaintext
+ * only ever lives on the device — and it doubles as the online heartbeat, so
+ * one statement authenticates the poll and records it.
+ */
+export async function touchScreenByToken(
+  tokenHash: string,
+  deviceInfo?: Record<string, unknown>,
+): Promise<Screen | null> {
+  const row = await queryOne<ScreenRow>(
+    `UPDATE screens
+        SET last_seen = now(),
+            device_info = CASE WHEN $2::jsonb IS NULL THEN device_info ELSE $2::jsonb END
+      WHERE device_token_hash = $1
+      RETURNING ${SCREEN_COLUMNS}`,
+    [tokenHash, deviceInfo === undefined ? null : JSON.stringify(deviceInfo)],
+  );
+  return row === null ? null : toScreen(row);
+}
+
+/**
+ * Self-enrolment: a TV opened /tv and needs an identity. Creates an unclaimed
+ * screen and returns the one-time plaintext token alongside it; only the hash
+ * is kept. The admin then claims it by its pairing code.
+ */
+export async function enrollScreen(input: {
+  tokenHash: string;
+  pairingCode: string;
+  deviceInfo: Record<string, unknown>;
+}): Promise<Screen> {
+  const row = await queryOne<ScreenRow>(
+    `INSERT INTO screens
+       (id, name, location, pairing_code, device_token_hash, enrolled_at,
+        device_info, last_seen)
+     VALUES ($1, 'New screen', '', $2, $3, now(), $4::jsonb, now())
+     RETURNING ${SCREEN_COLUMNS}`,
+    [newId('s'), input.pairingCode, input.tokenHash, JSON.stringify(input.deviceInfo)],
+  );
+  return toScreen(row!);
+}
+
 /** Six digits, avoiding one already in use. */
 export async function newPairingCode(): Promise<string> {
   const rows = await query<{pairing_code: string}>(
@@ -1153,15 +1246,19 @@ export async function updatePlaylist(
       for (const [position, slide] of patch.slides.entries()) {
         await client.query(
           `INSERT INTO slides
-             (id, playlist_id, position, type, image_url, event_id, headline,
-              cta, event_limit, duration_sec, enabled, start_at, end_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+             (id, playlist_id, position, type, image_url, video_url,
+              canva_design_id, event_id, headline, cta, event_limit,
+              duration_sec, enabled, start_at, end_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+                   $14, $15)`,
           [
             slide.id,
             id,
             position,
             slide.type,
             slide.imageUrl ?? null,
+            slide.videoUrl ?? null,
+            slide.canvaDesignId ?? null,
             slide.eventId ?? null,
             slide.headline ?? null,
             slide.cta ?? null,
@@ -1510,7 +1607,9 @@ export async function leaderboard(limit = 50): Promise<LeaderboardRow[]> {
      FROM stamp_cards c
      JOIN users u ON u.id = c.user_id
      LEFT JOIN stamp_events e ON e.user_id = c.user_id
-     WHERE u.role = 'student' AND u.active
+     -- Students and members both collect stamps, so both belong on the board.
+     -- Admins do not have a card to rank.
+     WHERE u.role IN ('student', 'member') AND u.active
      GROUP BY c.user_id, u.name, c.lifetime_stamps
      ORDER BY c.lifetime_stamps DESC, u.name
      LIMIT $1`,
@@ -1539,4 +1638,76 @@ export async function stampsToday(): Promise<{
     stamps: Number(row?.stamps ?? 0),
     redeemed: Number(row?.redeemed ?? 0),
   };
+}
+
+/* ---------------------------------------------------------------- canva -- */
+
+/** The stored Canva tokens, exactly as lib/canva.ts wrote them. */
+export type CanvaConnectionRow = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  connectedBy: string;
+  connectedAt: string;
+};
+
+export async function canvaConnection(): Promise<CanvaConnectionRow | null> {
+  const row = await queryOne<{
+    access_token: string;
+    refresh_token: string;
+    expires_at: Date;
+    connected_by: string;
+    connected_at: Date;
+  }>(
+    `SELECT access_token, refresh_token, expires_at, connected_by, connected_at
+       FROM canva_connection WHERE id = 'default'`,
+  );
+  return row === null
+    ? null
+    : {
+        accessToken: row.access_token,
+        refreshToken: row.refresh_token,
+        expiresAt: row.expires_at.toISOString(),
+        connectedBy: row.connected_by,
+        connectedAt: row.connected_at.toISOString(),
+      };
+}
+
+/** Replaces the single connection row — used on connect and on every refresh. */
+export async function saveCanvaConnection(input: {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  connectedBy: string;
+}): Promise<void> {
+  await query(
+    `INSERT INTO canva_connection
+       (id, access_token, refresh_token, expires_at, connected_by, updated_at)
+     VALUES ('default', $1, $2, $3, $4, now())
+     ON CONFLICT (id) DO UPDATE SET
+       access_token  = EXCLUDED.access_token,
+       refresh_token = EXCLUDED.refresh_token,
+       expires_at    = EXCLUDED.expires_at,
+       connected_by  = EXCLUDED.connected_by,
+       updated_at    = now()`,
+    [input.accessToken, input.refreshToken, input.expiresAt, input.connectedBy],
+  );
+}
+
+/** Just the tokens — for a background refresh that must not touch connected_by. */
+export async function updateCanvaTokens(input: {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+}): Promise<void> {
+  await query(
+    `UPDATE canva_connection SET
+       access_token = $1, refresh_token = $2, expires_at = $3, updated_at = now()
+     WHERE id = 'default'`,
+    [input.accessToken, input.refreshToken, input.expiresAt],
+  );
+}
+
+export async function clearCanvaConnection(): Promise<void> {
+  await query(`DELETE FROM canva_connection WHERE id = 'default'`);
 }

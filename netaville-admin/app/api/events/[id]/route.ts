@@ -17,7 +17,7 @@ export async function PATCH(request: Request, {params}: Params) {
     return NextResponse.json({error: 'No such event.'}, {status: 404});
   }
 
-  const body = (await request.json()) as Partial<NetavilleEvent>;
+  const body = (await request.json().catch(() => ({}))) as Partial<NetavilleEvent>;
   // `id` is not editable, and neither is the link back to the request that
   // created the event — both would just break references.
   delete body.id;

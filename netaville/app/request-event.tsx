@@ -10,17 +10,17 @@ import {
 } from 'react-native';
 import {useRouter} from 'expo-router';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {Check, Clock, Minus, Plus, Trash2, X} from 'lucide-react-native';
-import {AppIcon} from '@/components/AppIcon';
-import {FieldRow, FormField, SelectField} from '@/components/FormField';
+import {Check, Minus, Plus, Trash2, X} from 'lucide-react-native';
+import {DateField} from '@/components/DateField';
+import {FormField, SelectField} from '@/components/FormField';
 import {GhostButton} from '@/components/GhostButton';
 import {PrimaryButton} from '@/components/PrimaryButton';
 import {Screen} from '@/components/Screen';
 import {SectionLabel} from '@/components/SectionLabel';
+import {TimeRangeField} from '@/components/TimeRangeField';
 import {useAuth} from '@/context/auth';
 import {useRsvp} from '@/context/rsvp';
 import {DIETARY_OPTIONS, submitEventRequest, type Dietary} from '@/lib/api';
-import {parseDate, parseTime} from '@/lib/parseWhen';
 import {colors, fonts, icon, radii, spacing, type as typography} from '@/theme';
 
 const rooms = [
@@ -42,13 +42,13 @@ const ACTION_BAR_HEIGHT = 88;
  */
 const MAX_SLOTS = 4;
 
-/** One row of the date list, as typed. Parsed only on submit. */
-type SlotDraft = {key: string; date: string; time: string};
+/** One proposed slot. `date` is ISO `YYYY-MM-DD`; times are `HH:MM`. */
+type SlotDraft = {key: string; date: string; startTime: string; endTime: string};
 
 let slotKey = 0;
 function emptySlot(): SlotDraft {
   slotKey += 1;
-  return {key: `slot-${slotKey}`, date: '', time: ''};
+  return {key: `slot-${slotKey}`, date: '', startTime: '', endTime: ''};
 }
 
 export default function RequestEventScreen() {
@@ -68,6 +68,11 @@ export default function RequestEventScreen() {
   const {user} = useAuth();
   const {refresh} = useRsvp();
 
+  const patchSlot = (key: string, patch: Partial<SlotDraft>) =>
+    setSlots(current =>
+      current.map(slot => (slot.key === key ? {...slot, ...patch} : slot)),
+    );
+
   const submit = async () => {
     if (user === null || sending) {
       return;
@@ -76,47 +81,37 @@ export default function RequestEventScreen() {
       Alert.alert('Add a title', 'Tell us what the event is called.');
       return;
     }
-    // Every filled row must parse; a blank trailing row is just an unused
-    // option and is dropped rather than being an error.
-    const filled = slots.filter(
-      slot => slot.date.trim().length > 0 || slot.time.trim().length > 0,
-    );
+    // A row with a date counts; a blank trailing row is just an unused option
+    // and is dropped rather than being an error.
+    const filled = slots.filter(slot => slot.date.length > 0);
     if (filled.length === 0) {
       Alert.alert(
         'Add a date',
-        'Tell us at least one date and time that would work.',
+        'Pick at least one date and time that would work.',
       );
       return;
     }
 
-    const dates = [];
-    for (const [index, slot] of filled.entries()) {
-      const isoDate = parseDate(slot.date);
-      if (isoDate === null) {
-        Alert.alert(
-          `Check date ${index + 1}`,
-          'Try a date like “12 Sep” or “2026-09-12”.',
-        );
-        return;
-      }
-      const times = parseTime(slot.time);
-      if (times === null) {
-        Alert.alert(
-          `Check time ${index + 1}`,
-          'Try a start time like “18:00”, or a range like “18:00-20:00”.',
-        );
-        return;
-      }
-      dates.push({
-        date: isoDate,
-        startTime: times.startTime,
-        endTime: times.endTime,
-      });
+    const incomplete = filled.findIndex(
+      slot => slot.startTime.length === 0 || slot.endTime.length === 0,
+    );
+    if (incomplete !== -1) {
+      Alert.alert(
+        `Add a time to option ${incomplete + 1}`,
+        'Each date you propose needs a start and end time.',
+      );
+      return;
     }
+
+    const dates = filled.map(slot => ({
+      date: slot.date,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    }));
 
     setSending(true);
     try {
-      await submitEventRequest(user, {
+      await submitEventRequest({
         title: title.trim(),
         description: description.trim(),
         category,
@@ -208,73 +203,43 @@ export default function RequestEventScreen() {
                 : `When could it run? (${slots.length} options)`}
             </SectionLabel>
             {slots.map((slot, index) => (
-              <View key={slot.key} style={styles.slotRow}>
-                <FieldRow>
-                  <FormField
-                    label={index === 0 ? 'Preferred date' : `Date ${index + 1}`}
-                    value={slot.date}
-                    onChangeText={value =>
-                      setSlots(current =>
-                        current.map(candidate =>
-                          candidate.key === slot.key
-                            ? {...candidate, date: value}
-                            : candidate,
-                        ),
-                      )
-                    }
-                    placeholder="12 Sep"
-                    style={styles.flex}
-                    leadingIcon={
-                      <AppIcon
-                        name="calendar"
-                        color={colors.brandBlue}
-                        size={icon.size}
-                      />
-                    }
-                  />
-                  <FormField
-                    label="Time"
-                    value={slot.time}
-                    onChangeText={value =>
-                      setSlots(current =>
-                        current.map(candidate =>
-                          candidate.key === slot.key
-                            ? {...candidate, time: value}
-                            : candidate,
-                        ),
-                      )
-                    }
-                    placeholder="18:00-20:00"
-                    style={styles.flex}
-                    leadingIcon={
-                      <Clock
-                        size={icon.size}
+              <View key={slot.key} style={styles.slotCard}>
+                <View style={styles.slotHead}>
+                  <Text style={styles.slotTitle}>
+                    {index === 0 ? 'Preferred' : `Option ${index + 1}`}
+                  </Text>
+                  {slots.length === 1 ? null : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove option ${index + 1}`}
+                      hitSlop={8}
+                      onPress={() =>
+                        setSlots(current =>
+                          current.filter(
+                            candidate => candidate.key !== slot.key,
+                          ),
+                        )
+                      }
+                      style={({pressed}) => (pressed ? styles.pressed : null)}>
+                      <Trash2
+                        size={16}
                         strokeWidth={icon.strokeWidth}
-                        color={colors.brandBlue}
+                        color={colors.textDim}
                       />
-                    }
-                  />
-                </FieldRow>
-                {slots.length === 1 ? null : (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove option ${index + 1}`}
-                    onPress={() =>
-                      setSlots(current =>
-                        current.filter(candidate => candidate.key !== slot.key),
-                      )
-                    }
-                    style={({pressed}) => [
-                      styles.slotRemove,
-                      pressed ? styles.pressed : null,
-                    ]}>
-                    <Trash2
-                      size={16}
-                      strokeWidth={icon.strokeWidth}
-                      color={colors.textDim}
-                    />
-                  </Pressable>
-                )}
+                    </Pressable>
+                  )}
+                </View>
+                <DateField
+                  label="Date"
+                  value={slot.date}
+                  onChange={value => patchSlot(slot.key, {date: value})}
+                />
+                <TimeRangeField
+                  label="Time"
+                  startTime={slot.startTime}
+                  endTime={slot.endTime}
+                  onChange={value => patchSlot(slot.key, value)}
+                />
               </View>
             ))}
 
@@ -419,16 +384,25 @@ export default function RequestEventScreen() {
 const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: colors.bg},
   slots: {gap: spacing.md},
-  slotRow: {flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm},
-  slotRemove: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.control,
+  slotCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  slotHead: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
+    justifyContent: 'space-between',
+  },
+  slotTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
   },
   slotHint: {
     fontFamily: fonts.medium,
@@ -475,7 +449,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   form: {paddingHorizontal: spacing.xl, gap: spacing.xl},
-  flex: {flex: 1},
   stepperGroup: {gap: spacing.sm},
   stepper: {
     flexDirection: 'row',

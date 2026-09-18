@@ -41,7 +41,7 @@ function Row({item, isStudent}: {item: MenuItem; isStudent: boolean}) {
 }
 
 export default function MenuScreen() {
-  const {isStudent, setStudent} = useLoyalty();
+  const {isStudent} = useLoyalty();
 
   return (
     <Screen scroll>
@@ -50,19 +50,20 @@ export default function MenuScreen() {
         <Text style={typography.body}>
           Every coffee order adds stamps to your card.
         </Text>
-        <View style={styles.toggleRow}>
-          <Chip
-            tone="blue"
-            label="Regular prices"
-            active={!isStudent}
-            onPress={() => setStudent(false)}
-          />
-          <Chip
-            tone="blue"
-            label="Student prices"
-            active={isStudent}
-            onPress={() => setStudent(true)}
-          />
+        <View style={styles.priceNote}>
+          {isStudent ? (
+            <>
+              <Chip tone="blue" label="Student prices" active />
+              <Text style={styles.priceNoteText}>
+                Applied automatically — you&rsquo;re signed in with UKIM.
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.priceNoteText}>
+              Showing regular prices. Sign up with your UKIM email to get the
+              lower student prices here.
+            </Text>
+          )}
         </View>
       </View>
 
@@ -100,7 +101,20 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     gap: spacing.xs,
   },
-  toggleRow: {flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.md},
+  priceNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  priceNoteText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textDim,
+  },
   section: {
     paddingHorizontal: spacing.xl,
     gap: spacing.md,

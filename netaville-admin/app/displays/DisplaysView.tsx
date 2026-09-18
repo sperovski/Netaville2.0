@@ -1,13 +1,13 @@
 'use client';
 
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
 import {useRouter} from 'next/navigation';
 import Link from 'next/link';
 import {Button} from '@/components/Button';
 import {Card, CardHeader} from '@/components/Card';
 import {Drawer} from '@/components/Drawer';
 import {Field, Input, Select} from '@/components/Field';
-import {ImageUploader} from '@/components/ImageUploader';
+import {SlideMedia} from '@/components/SlideMedia';
 import {SlideCard, type SlideEvent} from '@/components/SlideCard';
 import {StatusPill} from '@/components/StatusPill';
 import {timeAgo} from '@/lib/format';
@@ -67,8 +67,21 @@ const THEMES: {value: ScreenTheme; label: string; hint: string}[] = [
   {value: 'dark', label: 'Dark', hint: 'For a dim foyer'},
 ];
 
+/** The origin never changes while the page is open, so nothing to subscribe to. */
+function subscribeNever(): () => void {
+  return () => {};
+}
+
 export function DisplaysView({screens, playlists, events}: Props) {
   const router = useRouter();
+  // The address to read out to whoever is standing at the TV. The server has
+  // no window to ask, so it renders a placeholder and the real origin arrives
+  // on hydration — which is exactly what useSyncExternalStore is for.
+  const tvOrigin = useSyncExternalStore(
+    subscribeNever,
+    () => window.location.origin,
+    () => 'your-panel',
+  );
   const [selectedId, setSelectedId] = useState<string | null>(
     screens.find(screen => screen.paired)?.id ?? screens[0]?.id ?? null,
   );
@@ -282,8 +295,11 @@ export function DisplaysView({screens, playlists, events}: Props) {
 
       {screen === null ? (
         <Card>
-          <p className="py-16 text-center text-[13.5px] text-muted">
-            Add a screen to get started.
+          <p className="mx-auto max-w-sm py-16 text-center text-[13.5px] text-muted">
+            Open{' '}
+            <code className="font-semibold text-ink">{tvOrigin}/tv</code> on the
+            TV. It registers itself and appears in this list with a code to
+            claim.
           </p>
         </Card>
       ) : (
@@ -366,13 +382,21 @@ export function DisplaysView({screens, playlists, events}: Props) {
             {screen.paired ? null : (
               <div className="mt-4 rounded-card border border-gold-edge bg-gold-tint p-4">
                 <p className="text-[13px] text-gold-ink">
-                  Open{' '}
-                  <code className="font-semibold">/screen/{screen.id}</code> on
-                  the TV. It shows the code{' '}
-                  <strong className="font-extrabold tracking-widest">
-                    {screen.pairingCode}
-                  </strong>{' '}
-                  — enter that under “Pair code” to claim it.
+                  On the TV, open{' '}
+                  <code className="font-semibold">
+                    {tvOrigin}/tv
+                  </code>
+                  . It shows a six-digit code
+                  {screen.enrolled ? (
+                    <>
+                      {' '}
+                      — this one is{' '}
+                      <strong className="font-extrabold tracking-widest">
+                        {screen.pairingCode}
+                      </strong>
+                    </>
+                  ) : null}
+                  . Enter it under “Pair code” to claim the screen.
                 </p>
               </div>
             )}
@@ -603,12 +627,19 @@ function SlideEditor({
             </Select>
           </Field>
         ) : (
-          <ImageUploader
-            value={draft.imageUrl}
-            onChange={url => patch({imageUrl: url})}
-            label={
-              draft.type === 'poster' ? 'Poster image' : 'Background image'
+          <SlideMedia
+            label={draft.type === 'poster' ? 'Poster artwork' : 'Background'}
+            imageUrl={draft.imageUrl}
+            videoUrl={draft.videoUrl}
+            canvaDesignId={draft.canvaDesignId}
+            designTitle={
+              (draft.headline ?? '').trim().length > 0
+                ? `Netaville — ${draft.headline!.trim()}`
+                : draft.type === 'poster'
+                  ? 'Netaville poster'
+                  : 'Netaville commercial'
             }
+            onChange={patch}
           />
         )}
 
@@ -737,7 +768,7 @@ function AddScreenDialog({
       open={open}
       onClose={onClose}
       title="Add a screen"
-      subtitle="It gets a pairing code you enter once the TV is showing it."
+      subtitle="Optional — a TV that opens /tv registers itself and shows up here on its own. Use this to reserve a slot before the screen is up."
       footer={
         <>
           <Button variant="quiet" onClick={onClose}>

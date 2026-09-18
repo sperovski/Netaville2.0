@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return gate.response;
   }
 
-  const body = (await request.json()) as Partial<NetavilleEvent>;
+  const body = (await request.json().catch(() => ({}))) as Partial<NetavilleEvent>;
   const title = (body.title ?? '').trim();
   if (title.length === 0) {
     return NextResponse.json({error: 'An event needs a title.'}, {status: 400});

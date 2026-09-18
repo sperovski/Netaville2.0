@@ -2,7 +2,7 @@
 
 import {useState} from 'react';
 import {useRouter} from 'next/navigation';
-import {BrandMark} from '@/components/BrandMark';
+import {LogoMark} from '@/components/LogoMark';
 import {Button} from '@/components/Button';
 import {Field, Input} from '@/components/Field';
 
@@ -41,7 +41,7 @@ export function LoginForm() {
     <main className="grid min-h-screen place-items-center px-6">
       <div className="w-full max-w-[380px]">
         <div className="mb-7 flex items-center gap-2.5">
-          <BrandMark size={34} />
+          <LogoMark size={30} />
           <span className="text-lg font-extrabold tracking-tight text-ink">
             Netaville
             <span className="ml-1.5 rounded-full bg-brand-tint px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-brand">

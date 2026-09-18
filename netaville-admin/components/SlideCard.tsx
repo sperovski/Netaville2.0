@@ -97,9 +97,23 @@ export function SlideCard({
       </span>
 
       <div className="relative grid h-14 w-24 shrink-0 place-items-center overflow-hidden rounded-control border border-line bg-page">
-        {slide.imageUrl === undefined ? (
+        {slide.videoUrl !== undefined ? (
+          <>
+            <video
+              src={slide.videoUrl}
+              muted
+              loop
+              autoPlay
+              playsInline
+              className="h-full w-full object-cover"
+            />
+            <span className="absolute bottom-0.5 right-1 rounded bg-black/60 px-1 text-[8px] font-bold uppercase tracking-wider text-white">
+              video
+            </span>
+          </>
+        ) : slide.imageUrl === undefined ? (
           <span className="px-1 text-center text-[9.5px] font-bold uppercase tracking-wider text-dim">
-            {slide.type === 'announcement' ? 'Event' : 'No image'}
+            {slide.type === 'announcement' ? 'Event' : 'No artwork'}
           </span>
         ) : (
           <Image

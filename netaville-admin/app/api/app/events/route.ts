@@ -1,10 +1,10 @@
 import {NextResponse} from 'next/server';
 import {appFeed} from '@/lib/appFeed';
-import {requireStudent} from '@/lib/student';
+import {requireAppUser} from '@/lib/student';
 
 /** The student app's events feed: published events only, as this student sees them. */
 export async function GET(request: Request) {
-  const gate = await requireStudent(request);
+  const gate = await requireAppUser(request);
   if ('response' in gate) {
     return gate.response;
   }

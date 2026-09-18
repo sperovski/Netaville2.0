@@ -33,10 +33,21 @@ type Body = {
 
 const ACTIONS = ['resolve', 'add', 'remove', 'redeem'] as const;
 
-/** Everything the counter screen draws for one student. */
+/** Who has a stamp card at all. Admins run the till, they do not use it. */
+function holdsACard(role: string): boolean {
+  return role === 'student' || role === 'member';
+}
+
+/**
+ * Everything the counter screen draws for one card holder.
+ *
+ * Students and members both collect stamps — a member's card and QR are
+ * identical, only the menu price differs — so the till serves both. Admins
+ * have no card.
+ */
 async function viewFor(userId: string): Promise<CounterView | null> {
   const student = await userById(userId);
-  if (student === null || student.role !== 'student') {
+  if (student === null || !holdsACard(student.role)) {
     return null;
   }
   const [card, history] = await Promise.all([
@@ -61,7 +72,7 @@ export async function POST(request: Request) {
     return gate.response;
   }
 
-  const body = (await request.json()) as Body;
+  const body = (await request.json().catch(() => ({}))) as Body;
   const action = ACTIONS.find(candidate => candidate === body.action);
   if (action === undefined) {
     return NextResponse.json(
@@ -97,9 +108,9 @@ export async function POST(request: Request) {
   }
 
   const student = await userById(userId);
-  if (student === null || student.role !== 'student') {
+  if (student === null || !holdsACard(student.role)) {
     return NextResponse.json(
-      {error: 'That code does not match a student.'},
+      {error: 'That code does not match an account.'},
       {status: 404},
     );
   }

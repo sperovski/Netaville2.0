@@ -1,16 +1,47 @@
-# Netaville Mobile app
+# Netaville
 
-![React Native](https://img.shields.io/badge/React%20Native-0.7x-61DAFB?logo=react)
-![Ruby](https://img.shields.io/badge/Ruby-3.x-CC342D?logo=ruby)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)
-![Platforms](https://img.shields.io/badge/Platforms-iOS%20·%20Android-lightgrey)
-![License](https://img.shields.io/badge/License-Proprietary-red)
+React Native (bare CLI) mobile app.
 
-An improved native client for the Netaville app
+## Requirements
 
-## Video Demo
+- Node >= 22.11
+- Xcode + CocoaPods (iOS)
+- Android Studio / Android SDK (Android) — not yet installed on this machine
 
+## Setup
 
-https://github.com/user-attachments/assets/77001370-3f4d-4ea7-94d7-7c97e79b811b
+```sh
+npm install
+npm run pods   # iOS only; runs `bundle exec pod install`
+```
 
+## Run
 
+```sh
+npm start      # Metro bundler
+npm run ios
+npm run android
+```
+
+## Checks
+
+```sh
+npm run typecheck   # tsc --noEmit, strict
+npm run lint        # eslint + prettier
+npm test            # jest
+```
+
+## Layout
+
+```
+src/
+  api/          typed fetch client (client.ts) + endpoint config (config.ts)
+  components/   shared UI primitives (Screen, Card)
+  navigation/   bottom tabs + native stack, typed param lists
+  screens/      Home, Details, Settings
+  theme/        light/dark palette + spacing scale
+```
+
+`@/*` is aliased to `src/*` (tsconfig paths + babel-plugin-module-resolver + jest moduleNameMapper).
+
+Point the app at a backend by editing `src/api/config.ts`.

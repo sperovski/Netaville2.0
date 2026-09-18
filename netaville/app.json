@@ -1,13 +1,14 @@
 {
   "expo": {
-    "name": "Netaville 2.0",
+    "name": "Netaville",
     "slug": "netaville",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
+      "buildNumber": "1",
+      "supportsTablet": false,
       "bundleIdentifier": "mk.netaville.app"
     },
     "android": {
@@ -25,8 +26,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-splash-screen",
-      "expo-web-browser"
+      "expo-splash-screen"
     ],
     "scheme": "netaville"
   }

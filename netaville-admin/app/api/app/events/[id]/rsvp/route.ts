@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {toAppEvent} from '@/lib/appFeed';
 import {eventById, setRsvp} from '@/lib/store';
-import {requireStudent} from '@/lib/student';
+import {requireAppUser} from '@/lib/student';
 
 type Params = {params: Promise<{id: string}>};
 
@@ -13,7 +13,7 @@ type Params = {params: Promise<{id: string}>};
  * sides on opposite answers.
  */
 export async function PUT(request: Request, {params}: Params) {
-  const gate = await requireStudent(request);
+  const gate = await requireAppUser(request);
   if ('response' in gate) {
     return gate.response;
   }
@@ -24,7 +24,7 @@ export async function PUT(request: Request, {params}: Params) {
     return NextResponse.json({error: 'No such event.'}, {status: 404});
   }
 
-  const body = (await request.json()) as {going?: boolean};
+  const body = (await request.json().catch(() => ({}))) as {going?: boolean};
   if (typeof body.going !== 'boolean') {
     return NextResponse.json(
       {error: 'Send {"going": true | false}.'},

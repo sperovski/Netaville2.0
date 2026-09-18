@@ -1,6 +1,12 @@
 'use client';
 
-import {useCallback, useEffect, useState} from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type {
   BoardEvent,
   ResolvedSlide,
@@ -25,17 +31,26 @@ function isDaytime(): boolean {
   return hour >= LIGHT_FROM && hour < LIGHT_UNTIL;
 }
 
-/** Resolves 'auto' against the clock, and keeps resolving it while it runs. */
+/**
+ * Resolves 'auto' against the clock, and keeps resolving it while it runs.
+ *
+ * The clock read is deferred to a mount effect rather than the initial render:
+ * the server and the panel can sit either side of the 7am/7pm boundary, and a
+ * theme that differs between the two is a hydration mismatch that throws the
+ * whole tree away on load. The wall shows dark for one frame, then settles.
+ */
 function useResolvedTheme(theme: ScreenTheme): 'light' | 'dark' {
-  const [daytime, setDaytime] = useState(isDaytime);
+  const [daytime, setDaytime] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (theme !== 'auto') {
       return;
     }
+    const sync = () => setDaytime(isDaytime());
+    sync();
     // A screen runs for months; checking every minute is what makes the
     // switchover happen on its own rather than at the next redeploy.
-    const timer = setInterval(() => setDaytime(isDaytime()), 60_000);
+    const timer = setInterval(sync, 60_000);
     return () => clearInterval(timer);
   }, [theme]);
 
@@ -45,6 +60,7 @@ function useResolvedTheme(theme: ScreenTheme): 'light' | 'dark' {
   if (theme === 'dark') {
     return 'dark';
   }
+  // null until the mount effect has read the clock — dark is the safe first paint.
   return daytime ? 'light' : 'dark';
 }
 
@@ -107,20 +123,42 @@ function month(iso: string): string {
   });
 }
 
-function isToday(iso: string): boolean {
-  return iso === new Date().toISOString().slice(0, 10);
-}
-
 type Props = {
   screenId: string;
   initialFeed: ScreenFeed;
+  /**
+   * Where to poll. Defaults to the by-id endpoint for the admin's /screen/[id]
+   * preview; the real /tv route passes the token-authenticated one.
+   */
+  feedUrl?: string;
+  /** Extra headers for the poll — the device bearer token, on /tv. */
+  feedHeaders?: Record<string, string>;
+  /** localStorage key to cache the last good feed under, for offline boots. */
+  cacheKey?: string;
 };
 
-export function ScreenPlayer({screenId, initialFeed}: Props) {
+export function ScreenPlayer({
+  screenId,
+  initialFeed,
+  feedUrl,
+  feedHeaders,
+  cacheKey,
+}: Props) {
   const [feed, setFeed] = useState(initialFeed);
   const [stalled, setStalled] = useState(false);
   const [step, setStep] = useState(0);
   const [clock, setClock] = useState('');
+  // The wall is a client surface — the clock, the theme switch, the rotation
+  // all move with time and the device's locale, none of which the server
+  // shares. Rather than chase every one, the first paint is the bare dark
+  // stage on both sides (so hydration always matches) and everything real
+  // mounts a frame later. On a TV that boots for minutes, one dark frame is
+  // nothing.
+  const ready = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
 
   const tone = TONES[useResolvedTheme(feed.screen.theme)];
   const slides = feed.playlist?.slides ?? [];
@@ -128,17 +166,32 @@ export function ScreenPlayer({screenId, initialFeed}: Props) {
   const index = slides.length === 0 ? 0 : step % slides.length;
   const current: ResolvedSlide | undefined = slides[index];
 
+  const endpoint = feedUrl ?? `/api/screens/${screenId}/feed`;
+  // Backs off after a failure so a panel with no uplink is not hammering a
+  // dead endpoint every ten seconds for hours.
+  const misses = useRef(0);
+
   const poll = useCallback(async () => {
     try {
-      const response = await fetch(`/api/screens/${screenId}/feed`, {
+      const response = await fetch(endpoint, {
         cache: 'no-store',
+        headers: feedHeaders,
       });
       if (!response.ok) {
+        misses.current += 1;
         setStalled(true);
         return;
       }
       const data = (await response.json()) as ScreenFeed;
+      misses.current = 0;
       setStalled(false);
+      if (cacheKey !== undefined) {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch {
+          // Storage full or blocked; the in-memory feed still stands.
+        }
+      }
       setFeed(previous => {
         // Restart the rotation only when the playlist actually changed, so a
         // routine poll never interrupts the slide on the wall.
@@ -148,14 +201,66 @@ export function ScreenPlayer({screenId, initialFeed}: Props) {
         return data;
       });
     } catch {
+      misses.current += 1;
       setStalled(true);
     }
-  }, [screenId]);
+  }, [endpoint, feedHeaders, cacheKey]);
 
   useEffect(() => {
-    const timer = setInterval(() => void poll(), POLL_MS);
-    return () => clearInterval(timer);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const loop = async () => {
+      if (cancelled) {
+        return;
+      }
+      await poll();
+      // 10s while healthy; widening toward a 2-minute ceiling while it keeps
+      // failing, so a reconnect is noticed soon but a long outage stays quiet.
+      const delay = Math.min(
+        POLL_MS * 2 ** Math.min(misses.current, 4),
+        120_000,
+      );
+      timer = setTimeout(() => void loop(), delay);
+    };
+    void loop();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [poll]);
+
+  // Keep the panel awake. A TV browser dims and then sleeps the display on its
+  // own; a signage screen must not. Re-requested whenever the tab becomes
+  // visible again, because the lock is dropped on hide.
+  useEffect(() => {
+    let lock: {release: () => Promise<void>} | null = null;
+    const request = async () => {
+      try {
+        const withLock = navigator as Navigator & {
+          wakeLock?: {request: (type: 'screen') => Promise<typeof lock>};
+        };
+        if (
+          withLock.wakeLock !== undefined &&
+          document.visibilityState === 'visible'
+        ) {
+          lock = await withLock.wakeLock.request('screen');
+        }
+      } catch {
+        // Not supported, or denied while backgrounded. Nothing else to try.
+      }
+    };
+    void request();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void request();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      void lock?.release().catch(() => {});
+    };
+  }, []);
 
   // The corner clock, so a quiet screen still looks alive.
   useEffect(() => {
@@ -181,6 +286,11 @@ export function ScreenPlayer({screenId, initialFeed}: Props) {
     const timer = setTimeout(() => setStep(previous => previous + 1), holdMs);
     return () => clearTimeout(timer);
   }, [step, holdMs, slides.length]);
+
+  // First paint on both server and client: the bare stage, nothing time-bound.
+  if (!ready) {
+    return <Stage tone={TONES.dark} />;
+  }
 
   if (!feed.screen.paired) {
     return (
@@ -228,7 +338,7 @@ export function ScreenPlayer({screenId, initialFeed}: Props) {
         key={`${current.id}-${step}`}
         style={{animationDuration: `${current.durationSec}s`}}
         className="screen-slide absolute inset-0">
-        <Slide slide={current} tone={tone} />
+        <Slide slide={current} tone={tone} today={feed.today} />
       </div>
 
       <Progress
@@ -242,7 +352,12 @@ export function ScreenPlayer({screenId, initialFeed}: Props) {
   );
 }
 
-function Stage({tone, children}: {tone: Tone; children: React.ReactNode}) {
+/** Nothing to subscribe to: "are we on the client yet" flips once and stays. */
+function subscribeNever(): () => void {
+  return () => {};
+}
+
+function Stage({tone, children}: {tone: Tone; children?: React.ReactNode}) {
   return (
     <div
       className={`screen-stage relative h-screen w-screen overflow-hidden transition-colors duration-1000 ${tone.stage}`}>
@@ -292,12 +407,33 @@ function Progress({
   );
 }
 
-function Slide({slide, tone}: {slide: ResolvedSlide; tone: Tone}) {
+function Slide({
+  slide,
+  tone,
+  today,
+}: {
+  slide: ResolvedSlide;
+  tone: Tone;
+  today: string;
+}) {
   if (slide.type === 'upcoming') {
-    return <Board slide={slide} tone={tone} />;
+    return <Board slide={slide} tone={tone} today={today} />;
   }
 
   if (slide.type === 'poster') {
+    if (slide.videoUrl !== undefined) {
+      // A poster cut as a loop — silent, fitted whole, never cropped.
+      return (
+        <video
+          src={slide.videoUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="h-full w-full object-contain"
+        />
+      );
+    }
     return slide.imageUrl === undefined ? (
       <Fallback label="Poster" tone={tone} />
     ) : (
@@ -329,7 +465,15 @@ function Slide({slide, tone}: {slide: ResolvedSlide; tone: Tone}) {
  * boards in the rotation, so the room sees what's on, then an advert, then
  * what's on again.
  */
-function Board({slide, tone}: {slide: ResolvedSlide; tone: Tone}) {
+function Board({
+  slide,
+  tone,
+  today,
+}: {
+  slide: ResolvedSlide;
+  tone: Tone;
+  today: string;
+}) {
   const events = slide.events ?? [];
   const headline =
     slide.headline === undefined || slide.headline === ''
@@ -355,7 +499,13 @@ function Board({slide, tone}: {slide: ResolvedSlide; tone: Tone}) {
 
       <div className={`mt-12 flex-1 border-t ${tone.rule}`}>
         {events.map(event => (
-          <BoardRow key={event.id} event={event} tone={tone} roomy={roomy} />
+          <BoardRow
+            key={event.id}
+            event={event}
+            tone={tone}
+            roomy={roomy}
+            todayIso={today}
+          />
         ))}
       </div>
     </div>
@@ -366,12 +516,14 @@ function BoardRow({
   event,
   tone,
   roomy,
+  todayIso,
 }: {
   event: BoardEvent;
   tone: Tone;
   roomy: boolean;
+  todayIso: string;
 }) {
-  const today = isToday(event.date);
+  const today = event.date === todayIso;
   return (
     <div
       className={`flex items-center gap-12 border-b ${tone.rule} ${
@@ -429,10 +581,31 @@ function BoardRow({
 
 /** A commercial: the thing that plays between boards. */
 function Commercial({slide, tone}: {slide: ResolvedSlide; tone: Tone}) {
-  const hasImage = slide.imageUrl !== undefined && slide.imageUrl !== '';
+  const hasVideo = slide.videoUrl !== undefined && slide.videoUrl !== '';
+  const hasImage =
+    !hasVideo && slide.imageUrl !== undefined && slide.imageUrl !== '';
+  const noHeadline =
+    (slide.headline === undefined || slide.headline === '') &&
+    (slide.cta === undefined || slide.cta === '');
   return (
     <div className="relative h-full w-full">
-      {hasImage ? (
+      {hasVideo ? (
+        <>
+          {/* A full-bleed video ad — filled edge to edge, silent, looping. */}
+          <video
+            src={slide.videoUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          {/* Only dim for legibility when there is text over the video. */}
+          {noHeadline ? null : (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+          )}
+        </>
+      ) : hasImage ? (
         <>
           <div
             className="absolute inset-0 bg-cover bg-center"

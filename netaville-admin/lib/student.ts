@@ -1,49 +1,90 @@
 import {NextResponse} from 'next/server';
-import {createStudent, logActivity, touchUser, userByEmail, userById} from './store';
-import {isUkimEmail} from './ukim';
+import {bearerToken, verifyAccessToken} from './jwt';
+import {touchUser, userById} from './store';
 import type {User} from './types';
 
 /**
- * Identifies the student behind a call from the mobile app.
+ * Identifies the account behind a call from the mobile app.
  *
- * The app signs in with the student's UKIM Microsoft account and sends that
- * account's id, name and email on every request. Nothing verifies the headers
- * themselves yet — this is the same dev-grade posture as ADMIN_DEV_PASSWORD in
- * lib/auth.ts, and it is spoofable by anyone who can reach the server. When the
- * real token verification lands, verify the bearer token here and return the
- * user it resolves to; every route below keeps working because they only ever
- * see the resolved `User`.
+ * Every app request carries `Authorization: Bearer <access token>` — a JWT
+ * this server signed (lib/jwt.ts), minted only after the caller proved who
+ * they were: a Microsoft id_token verified against Microsoft's own keys for a
+ * student, or an email and password checked against a scrypt hash for a
+ * member. The app cannot forge one, which is the whole difference from the
+ * identity headers this replaced.
  *
- * The UKIM domain check below runs regardless, and is the reason the app can
- * treat "signed in" and "verified student" as the same thing.
+ * The token is enough to know *who*, but not enough to know whether they are
+ * still allowed, so there is still a row read on every request. That is what
+ * makes deactivating an account take effect immediately rather than whenever
+ * the current token happens to lapse, and it is why `role` is taken from the
+ * database rather than from the claim — a student promoted or demoted in the
+ * panel should not keep the old answer for the life of a token.
+ *
+ * Accounts are never created here any more. Provisioning a student happens in
+ * /api/app/auth/microsoft, where the identity has actually been verified.
  */
-export const STUDENT_ID_HEADER = 'x-netaville-student-id';
-export const STUDENT_NAME_HEADER = 'x-netaville-student-name';
-export const STUDENT_EMAIL_HEADER = 'x-netaville-student-email';
 
 type Gate = {user: User} | {response: NextResponse};
 
+function unauthorised(message = 'Sign in to continue.'): NextResponse {
+  return NextResponse.json(
+    {error: message},
+    // The app treats a 401 as "refresh, then retry once, then sign out", so
+    // the challenge header marks this as a token problem rather than a refusal.
+    {status: 401, headers: {'WWW-Authenticate': 'Bearer'}},
+  );
+}
+
 /**
- * Resolves the caller, creating their record the first time they appear.
- *
- * A student exists in the panel the moment they open the app, which is what
- * makes the admin's student list the real roster rather than a fixture.
+ * Resolves the caller — student or member. Every app route uses this; the
+ * returned User carries the role, so a route that cares (student pricing, say)
+ * can branch on it.
  */
-export async function requireStudent(request: Request): Promise<Gate> {
-  const id = request.headers.get(STUDENT_ID_HEADER)?.trim();
-  if (id === undefined || id.length === 0) {
-    return {
-      response: NextResponse.json({error: 'Sign in first.'}, {status: 401}),
-    };
+export async function requireAppUser(request: Request): Promise<Gate> {
+  const token = bearerToken(request);
+  if (token === null) {
+    return {response: unauthorised()};
   }
 
-  const email = request.headers.get(STUDENT_EMAIL_HEADER)?.trim() ?? '';
-  const name = request.headers.get(STUDENT_NAME_HEADER)?.trim() ?? email;
+  const claims = await verifyAccessToken(token);
+  if (claims === null) {
+    // Bad signature, wrong audience, or — much more often — simply expired.
+    return {response: unauthorised('Your session has expired.')};
+  }
 
-  // The enrolment check. The app refuses a non-UKIM account before it gets
-  // here, but that check runs on the student's own device — this is the one
-  // that counts, and it runs before any record is created.
-  if (!isUkimEmail(email)) {
+  const user = await userById(claims.userId);
+  if (user === null) {
+    return {response: unauthorised()};
+  }
+  if (!user.active) {
+    return {
+      response: NextResponse.json(
+        {error: 'This account has been deactivated.'},
+        {status: 403},
+      ),
+    };
+  }
+  // An admin's panel session is not an app session. Keeping the two apart
+  // means an app token can never be used against the panel's routes.
+  if (user.role !== 'student' && user.role !== 'member') {
+    return {response: unauthorised()};
+  }
+
+  // Seeing them is what keeps them online; presence is read back from this.
+  await touchUser(user.id);
+  return {user: {...user, online: true, lastSeen: new Date().toISOString()}};
+}
+
+/**
+ * Like requireAppUser, but rejects anyone who isn't a verified UKIM student.
+ * For routes or branches that are genuinely student-only.
+ */
+export async function requireStudent(request: Request): Promise<Gate> {
+  const gate = await requireAppUser(request);
+  if ('response' in gate) {
+    return gate;
+  }
+  if (gate.user.role !== 'student') {
     return {
       response: NextResponse.json(
         {error: 'Netaville is for UKIM students. Sign in with your ukim.mk address.'},
@@ -51,31 +92,5 @@ export async function requireStudent(request: Request): Promise<Gate> {
       ),
     };
   }
-
-  // Match on the Google id first, then on email: a student seeded by hand in
-  // the panel should be claimed by their account rather than duplicated.
-  const existing =
-    (await userById(id)) ?? (email.length > 0 ? await userByEmail(email) : null);
-
-  if (existing !== null) {
-    if (!existing.active) {
-      return {
-        response: NextResponse.json(
-          {error: 'This account has been deactivated.'},
-          {status: 403},
-        ),
-      };
-    }
-    // Seeing them is what keeps them online; presence is read back from this.
-    await touchUser(existing.id);
-    return {user: {...existing, online: true, lastSeen: new Date().toISOString()}};
-  }
-
-  const created = await createStudent({
-    id,
-    name: name.length > 0 ? name : 'New student',
-    email,
-  });
-  await logActivity('auth', `${created.name} opened the app for the first time`);
-  return {user: created};
+  return gate;
 }

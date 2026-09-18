@@ -13,7 +13,7 @@ export async function PATCH(request: Request, {params}: Params) {
   }
 
   const {id} = await params;
-  const body = (await request.json()) as {
+  const body = (await request.json().catch(() => ({}))) as {
     action?: 'approve' | 'reject';
     reason?: string;
     /** Which proposed slot to run it on; defaults to the organiser's first. */

@@ -4,7 +4,12 @@
  * change for both sides.
  */
 
-export type Role = 'student' | 'admin';
+/**
+ * 'student' is a verified UKIM account (Microsoft sign-in); 'member' is a
+ * general account created with an email and password; 'admin' runs the panel.
+ * Only students get student pricing in the app.
+ */
+export type Role = 'student' | 'admin' | 'member';
 
 export type User = {
   id: string;
@@ -123,6 +128,10 @@ export type Screen = {
   paired: boolean;
   online: boolean;
   lastSeen: string;
+  /** True once a physical device has enrolled itself and holds a token. */
+  enrolled: boolean;
+  /** Whatever the device last reported about itself — diagnostics only. */
+  deviceInfo: Record<string, unknown>;
   activePlaylistId: string | null;
 };
 
@@ -136,8 +145,12 @@ export type SlideType = 'poster' | 'announcement' | 'marketing' | 'upcoming';
 export type Slide = {
   id: string;
   type: SlideType;
-  /** poster + marketing. */
+  /** poster + marketing: a still image. Mutually exclusive with videoUrl. */
   imageUrl?: string;
+  /** poster + marketing: a looping .mp4. Mutually exclusive with imageUrl. */
+  videoUrl?: string;
+  /** Set when the artwork is edited in Canva; see lib/canva.ts. */
+  canvaDesignId?: string;
   /** announcement: the event it is built from. */
   eventId?: string;
   headline?: string;
@@ -210,6 +223,12 @@ export type Activity = {
 /** What /screen/[id] polls for: everything the TV needs in one payload. */
 export type ScreenFeed = {
   screen: Pick<Screen, 'id' | 'name' | 'paired' | 'pairingCode' | 'theme'>;
+  /**
+   * The server's date, YYYY-MM-DD. "Today" on a wall is the venue's day, not
+   * the panel's clock — and pinning it here also stops the SSR and the client
+   * disagreeing about it, which would tear down the tree on load.
+   */
+  today: string;
   playlist: {
     id: string;
     updatedAt: string;

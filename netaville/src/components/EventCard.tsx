@@ -49,7 +49,8 @@ export function EventCard({event, going, onPress}: Props) {
       onPress={onPress}
       style={({pressed}) => [styles.card, pressed ? styles.pressed : null]}>
       <View style={styles.head}>
-        {/* date stub — a torn-off ticket, so the list has a spine you can scan */}
+        {/* date stub — a torn-off notepad page: a band across the top and a row
+            of holes down the tear edge, so the list has a spine you can scan */}
         <View style={[styles.stub, today ? styles.stubToday : null]}>
           <View style={[styles.stubBand, today ? styles.stubBandToday : null]}>
             <Text style={styles.stubBandText}>
@@ -63,6 +64,15 @@ export function EventCard({event, going, onPress}: Props) {
             <Text style={[styles.month, today ? styles.monthToday : null]}>
               {MONTHS[date.getMonth()]}
             </Text>
+          </View>
+          {/* perforation down the tear edge */}
+          <View style={styles.perforation} pointerEvents="none">
+            {[0, 1, 2, 3, 4].map(dot => (
+              <View
+                key={dot}
+                style={[styles.perfDot, today ? styles.perfDotToday : null]}
+              />
+            ))}
           </View>
         </View>
 
@@ -151,6 +161,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 1,
   },
+  perforation: {
+    position: 'absolute',
+    right: 3,
+    top: 21,
+    bottom: 5,
+    justifyContent: 'space-between',
+  },
+  perfDot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.blueTintBorder,
+  },
+  perfDotToday: {backgroundColor: colors.coralTintBorder},
   day: {
     fontFamily: fonts.extrabold,
     fontSize: 21,

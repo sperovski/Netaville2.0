@@ -12,9 +12,10 @@ import {
   useFonts,
 } from '@expo-google-fonts/montserrat';
 import {NetavilleSplash} from '@/components/NetavilleSplash';
+import {RewardUnlockedCard} from '@/components/RewardUnlockedCard';
 import {AuthProvider, useAuth} from '@/context/auth';
 import {bootstrapApp} from '@/context/bootstrap';
-import {LoyaltyProvider} from '@/context/loyalty';
+import {LoyaltyProvider, useLoyalty} from '@/context/loyalty';
 import {RsvpProvider} from '@/context/rsvp';
 import {colors} from '@/theme';
 
@@ -101,6 +102,9 @@ function AppShell() {
         </Stack.Protected>
         <Stack.Protected guard={status === 'signedOut'}>
           <Stack.Screen name="sign-in" />
+          <Stack.Screen name="sign-up" options={{animation: 'slide_from_right'}} />
+          <Stack.Screen name="verify" options={{animation: 'slide_from_right'}} />
+          <Stack.Screen name="log-in" options={{animation: 'slide_from_right'}} />
         </Stack.Protected>
       </Stack>
       {showSplash ? (
@@ -109,6 +113,21 @@ function AppShell() {
           holding={!booted || restoring}
         />
       ) : null}
+      {/* Held back until the intro is out of the way, and only ever over a
+          signed-in app: there is no card to celebrate on the sign-in screen. */}
+      {showSplash || status !== 'signedIn' ? null : <RewardCelebration />}
     </>
+  );
+}
+
+/** Bridges the loyalty state to the celebration, wherever the person is. */
+function RewardCelebration() {
+  const {rewardUnlocked, rewards, dismissRewardUnlocked} = useLoyalty();
+  return (
+    <RewardUnlockedCard
+      visible={rewardUnlocked}
+      rewards={rewards}
+      onDismiss={dismissRewardUnlocked}
+    />
   );
 }

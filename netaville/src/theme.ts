@@ -6,6 +6,8 @@
 export const colors = {
   bg: '#FFFFFF',
   surface: '#FFFFFF',
+  /** A warm off-white, for a surface that should read as paper, not a panel. */
+  canvas: '#FAF6EE',
   border: '#EEE3CD',
   divider: '#F0E7D3',
 

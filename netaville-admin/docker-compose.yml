@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: sperovski
-      POSTGRES_PASSWORD: magii11022
+      POSTGRES_PASSWORD: netaville-local-dev-only
       POSTGRES_DB: netaville
     ports:
       - '5432:5432'

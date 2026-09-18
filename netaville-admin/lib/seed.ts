@@ -24,7 +24,10 @@ export const seedUsers: User[] = [
   {
     id: 'u-admin',
     name: 'Stefan Perovski',
-    email: 'stefan.perovski20@gmail.com',
+    // Not a personal address on purpose: the panel signs in with this plus the
+    // ADMIN_PASSWORD, and keeping a real inbox out of it leaves that inbox free
+    // to register as an ordinary account in the app.
+    email: 'admin@netaville.local',
     role: 'admin',
     online: true,
     lastSeen: hoursAgo(0),
@@ -427,6 +430,8 @@ export const seedScreens: Screen[] = [
     paired: true,
     online: true,
     lastSeen: hoursAgo(0.01),
+    enrolled: false,
+    deviceInfo: {},
     activePlaylistId: 'p-1',
   },
   {
@@ -438,6 +443,8 @@ export const seedScreens: Screen[] = [
     paired: true,
     online: false,
     lastSeen: hoursAgo(19),
+    enrolled: false,
+    deviceInfo: {},
     activePlaylistId: 'p-2',
   },
   {
@@ -449,6 +456,8 @@ export const seedScreens: Screen[] = [
     paired: false,
     online: false,
     lastSeen: hoursAgo(72),
+    enrolled: false,
+    deviceInfo: {},
     activePlaylistId: null,
   },
 ];

@@ -93,6 +93,7 @@ export async function buildScreenFeed(
       pairingCode: screen.pairingCode,
       theme: screen.theme,
     },
+    today: new Date().toISOString().slice(0, 10),
     playlist:
       playlist === null
         ? null

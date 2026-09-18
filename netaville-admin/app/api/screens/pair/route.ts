@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     return gate.response;
   }
 
-  const body = (await request.json()) as {code?: string};
+  const body = (await request.json().catch(() => ({}))) as {code?: string};
   const code = (body.code ?? '').replace(/\D/g, '');
   if (code.length !== 6) {
     return NextResponse.json(

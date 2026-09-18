@@ -1,9 +1,10 @@
-import {StyleSheet, Text, View} from 'react-native';
+import {useEffect} from 'react';
+import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {useRouter} from 'expo-router';
 import {StatusBar} from 'expo-status-bar';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {AppIcon} from '@/components/AppIcon';
 import {BrandMotif} from '@/components/BrandMotif';
-import {MicrosoftMark} from '@/components/MicrosoftMark';
 import {LogoMark} from '@/components/LogoMark';
 import {PrimaryButton} from '@/components/PrimaryButton';
 import {useAuth} from '@/context/auth';
@@ -12,11 +13,11 @@ import type {AppIconName} from '@/data/appIcons';
 
 /**
  * The way into the app. A brand panel carries the pitch, a white sheet slides
- * under it with the one thing to do — no form, no password, one account path.
+ * under it with the one thing to do — create an account, or come back to one.
  *
- * That path is the university's own Microsoft account, which is also how the
- * app knows who is a student: UKIM issues every one of them a ukim.mk address,
- * so signing in and being verified are the same act.
+ * Everyone signs in the same way now: an email and a password. A ukim.mk
+ * address is what earns the student price, and the server mails a code to check
+ * the address is really yours before it counts.
  */
 
 type Perk = {
@@ -53,9 +54,12 @@ const perks: Perk[] = [
 ];
 
 export default function SignInScreen() {
-  const {signIn, busy, ready, error, canUseTestSignIn, signInAsTestStudent} =
-    useAuth();
+  const {error, clearError} = useAuth();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  // Drop an error left behind by the sign-up / log-in screens.
+  useEffect(() => clearError(), [clearError]);
 
   return (
     <View style={styles.root}>
@@ -89,56 +93,57 @@ export default function SignInScreen() {
             Coffee, events{'\n'}and a card that{'\n'}counts.
           </Text>
           <Text style={styles.sub}>
-            Sign in with your UKIM account. Free to join, nothing new to
-            remember.
+            Sign up with your email. A UKIM address gets you the student price.
+            Free either way.
           </Text>
         </View>
       </View>
 
-      <View style={[styles.sheet, {paddingBottom: insets.bottom + spacing.xl}]}>
-        <View style={styles.perks}>
-          {perks.map(perk => (
-            <View key={perk.title} style={styles.perk}>
-              <View style={[styles.perkIcon, {backgroundColor: perk.tint}]}>
-                <AppIcon name={perk.icon} color={perk.ink} size={19} />
+      <View style={styles.sheet}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.sheetContent,
+            {paddingBottom: insets.bottom + spacing.xl},
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.perks}>
+            {perks.map(perk => (
+              <View key={perk.title} style={styles.perk}>
+                <View style={[styles.perkIcon, {backgroundColor: perk.tint}]}>
+                  <AppIcon name={perk.icon} color={perk.ink} size={19} />
+                </View>
+                <View style={styles.perkBody}>
+                  <Text style={styles.perkTitle}>{perk.title}</Text>
+                  <Text style={styles.perkText}>{perk.body}</Text>
+                </View>
               </View>
-              <View style={styles.perkBody}>
-                <Text style={styles.perkTitle}>{perk.title}</Text>
-                <Text style={styles.perkText}>{perk.body}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        <View style={styles.actions}>
-          <PrimaryButton
-            label={busy ? 'Signing in…' : 'Continue with Outlook'}
-            variant="secondary"
-            onPress={() => void signIn()}
-            loading={busy}
-            disabled={!ready}
-            icon={<MicrosoftMark size={19} />}
-            style={styles.cta}
-          />
-
-          {error === null ? null : <Text style={styles.error}>{error}</Text>}
-
-          {/* Development only, and only until the Azure client id is set — see
-              canUseTestSignIn in context/auth. Keeps the app usable while the
-              app registration is still being sorted out. */}
-          {canUseTestSignIn ? (
+          <View style={styles.actions}>
             <PrimaryButton
-              label="Continue as a test student"
-              variant="quiet"
-              onPress={() => void signInAsTestStudent()}
+              label="Create an account"
+              onPress={() => router.push('/sign-up')}
             />
-          ) : null}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/log-in')}
+              style={styles.loginRow}>
+              <Text style={styles.loginText}>
+                Already have an account?{' '}
+                <Text style={styles.loginStrong}>Log in</Text>
+              </Text>
+            </Pressable>
 
-          <Text style={styles.legal}>
-            Use your UKIM address — the one ending in ukim.mk. We only ever read
-            your name and email address.
-          </Text>
-        </View>
+            {error === null ? null : <Text style={styles.error}>{error}</Text>}
+
+            <Text style={styles.legal}>
+              We only ever store your name and email address, plus the stamps and
+              RSVPs on your account.
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     </View>
   );
@@ -180,11 +185,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
+  },
+  sheetContent: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     gap: spacing.xl,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
-  perks: {flex: 1, justifyContent: 'center', gap: spacing.md},
+  perks: {gap: spacing.md},
   perk: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -216,12 +225,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   actions: {gap: spacing.md},
-  cta: {borderColor: colors.border},
+  loginRow: {alignItems: 'center', paddingVertical: spacing.xs},
+  loginText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  loginStrong: {fontFamily: fonts.bold, color: colors.brandBlue},
   error: {
     fontFamily: fonts.medium,
     fontSize: 13,
     lineHeight: 19,
     color: colors.danger,
+    textAlign: 'center',
   },
   legal: {
     fontFamily: fonts.regular,

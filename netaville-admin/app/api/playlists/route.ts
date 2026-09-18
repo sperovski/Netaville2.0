@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return gate.response;
   }
 
-  const body = (await request.json()) as {screenId?: string; name?: string};
+  const body = (await request.json().catch(() => ({}))) as {screenId?: string; name?: string};
   const screen =
     body.screenId === undefined ? null : await screenById(body.screenId);
   if (screen === null) {

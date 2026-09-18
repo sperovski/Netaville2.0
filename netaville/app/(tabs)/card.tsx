@@ -166,7 +166,7 @@ export default function CardScreen() {
               value: String(coffeesRedeemed),
               tint: colors.coral,
             },
-            {label: 'Rank', value: `#${rank}`, tint: colors.cyan},
+            {label: 'Rank', value: rank === null ? '—' : `#${rank}`, tint: colors.cyan},
           ]}
         />
       </View>
@@ -187,7 +187,7 @@ export default function CardScreen() {
             <Text style={styles.studentText}>
               {isStudent
                 ? 'Student prices are shown on the menu.'
-                : 'Verify your student status in Profile to unlock lower prices.'}
+                : 'Sign up with your UKIM email to unlock lower prices.'}
             </Text>
           </View>
         </View>

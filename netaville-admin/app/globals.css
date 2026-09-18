@@ -61,9 +61,20 @@ body {
   scrollbar-color: var(--color-line) transparent;
 }
 
-/* The TV route paints its own dark ground edge to edge. */
+/* The TV route paints its own dark ground edge to edge, and behaves like a
+   kiosk: no cursor, no text selection, no rubber-band scroll, no long-press
+   menu. It is a wall, not a page. */
 body:has(.screen-stage) {
   background: #0b0a1f;
+  overflow: hidden;
+}
+.screen-stage,
+.screen-stage * {
+  cursor: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
 }
 
 /*

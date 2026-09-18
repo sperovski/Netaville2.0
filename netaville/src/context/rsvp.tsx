@@ -94,7 +94,7 @@ export function RsvpProvider({children}: {children: ReactNode}) {
     const id = ++loadId.current;
     setStatus(current => (current === 'ready' ? current : 'loading'));
     try {
-      const {events: fetched} = await fetchEvents(user);
+      const {events: fetched} = await fetchEvents();
       if (id !== loadId.current) {
         return;
       }
@@ -179,7 +179,7 @@ export function RsvpProvider({children}: {children: ReactNode}) {
         );
 
         try {
-          const {event} = await putRsvp(user, id, going);
+          const {event} = await putRsvp(id, going);
           // Replace with the server's tally, which counts everyone rather
           // than guessing from one device.
           setEvents(list =>

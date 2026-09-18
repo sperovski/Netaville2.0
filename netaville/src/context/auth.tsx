@@ -8,33 +8,35 @@ import {
   type ReactNode,
 } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import * as WebBrowser from 'expo-web-browser';
-import {
-  exchangeCodeAsync,
-  makeRedirectUri,
-  useAuthRequest,
-  useAutoDiscovery,
-} from 'expo-auth-session';
 import type {AvatarSeed} from '@/data/avatars';
 import {
-  MICROSOFT_CLIENT_ID,
-  MICROSOFT_DISCOVERY_URL,
-  MICROSOFT_SCOPES,
-  isMicrosoftConfigured,
-} from '@/data/authConfig';
-import {UKIM_REJECTION, isUkimEmail} from '@/lib/ukim';
+  ApiError,
+  login,
+  register,
+  resendVerificationCode,
+  revokeSession,
+  setSessionLostHandler,
+  verifyEmail,
+} from '@/lib/api';
+import {
+  clearSession,
+  readSession,
+  saveSession,
+  type Session,
+} from '@/lib/tokenStore';
 
 /**
- * Sign-in, through the university's own Microsoft accounts.
+ * Sign-in, by email and password, for everyone.
  *
- * Outlook rather than Google because UKIM issues every student an address in
- * its directory — so signing in *is* the enrolment check, and the app never
- * has to run a verification queue of its own.
+ * There used to be two doors — Microsoft for students, email for everyone else.
+ * The Microsoft one is gone: it needed an admin at UKIM to grant tenant consent
+ * before a single student could get in, and that never happened. Now a student
+ * registers with their ukim.mk address like anyone else; the server mails a
+ * code to prove they hold the mailbox, and the address is what grants the
+ * `student` role once the code is confirmed.
  *
- * The flow is authorization code + PKCE in a system browser sheet, which is
- * the only correct shape for a public client: no client secret ships in the
- * binary, and the code that comes back is useless without the verifier held in
- * memory on this device.
+ * So registration is two steps — `signUpWithEmail` then `verifyEmail` — and
+ * only the second one produces a session.
  */
 
 /**
@@ -45,15 +47,15 @@ export type AuthUser = {
   id: string;
   name: string;
   email: string;
+  /**
+   * 'student' is a verified ukim.mk address — the only kind that gets student
+   * pricing on the menu. 'member' is any other address, with the same access
+   * to everything else.
+   */
+  kind: 'student' | 'member';
 };
 
 type Status = 'restoring' | 'signedOut' | 'signedIn';
-
-/** What lives in SecureStore: the account plus its on-device preferences. */
-type StoredSession = {
-  user: AuthUser;
-  avatarSeed: AvatarSeed | null;
-};
 
 type AuthContextValue = {
   status: Status;
@@ -61,96 +63,36 @@ type AuthContextValue = {
   /** The face the user picked; null means "derive one from the account id". */
   avatarSeed: AvatarSeed | null;
   chooseAvatar: (seed: AvatarSeed) => Promise<void>;
-  /** Set when the last sign-in attempt failed; cleared on the next attempt. */
+  /** Set when the last attempt failed; cleared on the next one. */
   error: string | null;
-  /** True while the Microsoft sheet is open and the response is being handled. */
+  /** Drops a stale error — the auth screens call it when they mount. */
+  clearError: () => void;
+  /** True while an attempt is in flight. */
   busy: boolean;
-  /** False until the request object is built; the button waits for it. */
-  ready: boolean;
-  signIn: () => Promise<void>;
-  signOut: () => Promise<void>;
   /**
-   * Signs in as a stand-in student, without Microsoft.
-   *
-   * Only ever offered in a development build that has no Azure client id yet —
-   * `canUseTestSignIn` below is the guard, and it is `false` in any release
-   * build, so this cannot become a way into the real app.
+   * Step one of joining. Resolves true when the code has been sent and the
+   * caller should move to the verify screen; false with `error` set otherwise.
    */
-  signInAsTestStudent: () => Promise<void>;
-  canUseTestSignIn: boolean;
+  signUpWithEmail: (input: {
+    name: string;
+    email: string;
+    password: string;
+  }) => Promise<boolean>;
+  /** Step two. Resolves true once the session is live. */
+  verifyEmailCode: (input: {email: string; code: string}) => Promise<boolean>;
+  /** A fresh code for a pending verification. */
+  resendCode: (email: string) => Promise<boolean>;
+  /** Coming back in. Resolves true once the session is live. */
+  signInWithEmail: (input: {email: string; password: string}) => Promise<boolean>;
+  signOut: () => Promise<void>;
+  /** Ends every session for this account, on every device. */
+  signOutEverywhere: () => Promise<void>;
 };
-
-/**
- * The stand-in account. Its address is a real UKIM one so the server's own
- * check treats it exactly like any other student — the point is to exercise
- * the app, not to bypass the rule it enforces.
- */
-const TEST_STUDENT: AuthUser = {
-  id: 'dev-test-student',
-  name: 'Test Student',
-  email: 'test.student@students.finki.ukim.mk',
-};
-
-/** A development build with sign-in not yet configured, and nothing else. */
-const canUseTestSignIn = __DEV__ && !isMicrosoftConfigured;
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STORAGE_KEY = 'netaville.user';
-
-// Closes the browser sheet once the redirect lands. No-op off web, but the
-// docs ask for it unconditionally and it costs nothing.
-WebBrowser.maybeCompleteAuthSession();
-
-/** Reads a stored record, tolerating one written before avatars were picked. */
-function readSession(raw: string): StoredSession {
-  const parsed = JSON.parse(raw) as StoredSession | AuthUser;
-  return 'user' in parsed ? parsed : {user: parsed, avatarSeed: null};
-}
-
-/** What Microsoft Graph returns for /me, of which we want three fields. */
-type GraphProfile = {
-  id?: unknown;
-  displayName?: unknown;
-  mail?: unknown;
-  userPrincipalName?: unknown;
-};
-
-/**
- * Reads the signed-in account from Graph rather than from the id token.
- *
- * The token's claims would save a round trip, but `email` is an optional claim
- * that a tenant need not emit — and the address is the whole enrolment check
- * here, so it has to come from somewhere that always has it. Graph's `mail`
- * falls back to the user principal name, which for a university account is the
- * ukim.mk address either way.
- */
-async function fetchProfile(accessToken: string): Promise<AuthUser | null> {
-  const response = await fetch('https://graph.microsoft.com/v1.0/me', {
-    headers: {Authorization: `Bearer ${accessToken}`},
-  });
-  if (!response.ok) {
-    return null;
-  }
-  const profile = (await response.json()) as GraphProfile;
-
-  const id = typeof profile.id === 'string' ? profile.id : null;
-  const email =
-    typeof profile.mail === 'string' && profile.mail.length > 0
-      ? profile.mail
-      : typeof profile.userPrincipalName === 'string'
-        ? profile.userPrincipalName
-        : null;
-  if (id === null || email === null) {
-    return null;
-  }
-
-  return {
-    id,
-    name: typeof profile.displayName === 'string' ? profile.displayName : email,
-    email,
-  };
-}
+/** The avatar choice — a preference, not a credential, so it lives apart. */
+const AVATAR_KEY = 'netaville.avatarSeed';
 
 export function AuthProvider({children}: {children: ReactNode}) {
   const [status, setStatus] = useState<Status>('restoring');
@@ -159,65 +101,56 @@ export function AuthProvider({children}: {children: ReactNode}) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // `netaville://auth`, matching the redirect URI registered in Azure. It is
-  // derived rather than written out so the scheme has one source: app.json.
-  const redirectUri = makeRedirectUri({scheme: 'netaville', path: 'auth'});
-  const discovery = useAutoDiscovery(MICROSOFT_DISCOVERY_URL);
-
-  const [request, , promptAsync] = useAuthRequest(
-    {
-      clientId: MICROSOFT_CLIENT_ID,
-      scopes: MICROSOFT_SCOPES,
-      redirectUri,
-      usePKCE: true,
-    },
-    discovery,
-  );
-
-  // Callers update state first and persist after, so a failed write costs the
-  // user nothing this launch — it only means the session is not remembered for
-  // the next one. Swallowing it here keeps that out of every call site.
-  const persist = useCallback(async (session: StoredSession) => {
-    try {
-      await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(session));
-    } catch {
-      // Keychain unavailable; the in-memory session still stands.
-    }
+  const adopt = useCallback(async (session: Session) => {
+    await saveSession(session);
+    setUser(session.user);
+    setStatus('signedIn');
   }, []);
 
-  const store = useCallback(
-    async (next: AuthUser, seed: AvatarSeed | null = null) => {
-      setUser(next);
-      setAvatarSeed(seed);
-      setStatus('signedIn');
-      await persist({user: next, avatarSeed: seed});
-    },
-    [persist],
-  );
+  const forget = useCallback(async () => {
+    await clearSession();
+    setUser(null);
+    setStatus('signedOut');
+  }, []);
 
-  // Cold start: the stored profile is the whole restore path, which keeps
-  // launch offline-friendly. There is no silent re-auth to fall back on — the
-  // sheet is the only way in, and opening it unasked at launch would be worse
-  // than showing the sign-in screen.
+  /**
+   * The API client calls this when a refresh fails — the refresh token was
+   * revoked, expired, or replayed. There is nothing to salvage, so the app
+   * drops to the sign-in screen rather than showing a signed-in shell that
+   * cannot load anything.
+   */
+  useEffect(() => {
+    setSessionLostHandler(() => {
+      setUser(null);
+      setStatus('signedOut');
+      setError('Your session ended. Sign in again.');
+    });
+    return () => setSessionLostHandler(null);
+  }, []);
+
+  // Cold start. The stored refresh token is the whole restore path, which keeps
+  // launch offline-friendly: the app trusts what is in the keychain and lets
+  // the first real request sort out an expired access token.
   useEffect(() => {
     let cancelled = false;
 
     const restore = async () => {
-      try {
-        const saved = await SecureStore.getItemAsync(STORAGE_KEY);
-        if (saved !== null && !cancelled) {
-          const session = readSession(saved);
-          setUser(session.user);
-          setAvatarSeed(session.avatarSeed);
-          setStatus('signedIn');
-          return;
-        }
-      } catch {
-        // A failed restore just means "not signed in".
+      const [session, seed] = await Promise.all([
+        readSession(),
+        SecureStore.getItemAsync(AVATAR_KEY).catch(() => null),
+      ]);
+      if (cancelled) {
+        return;
       }
-      if (!cancelled) {
-        setStatus('signedOut');
+      if (seed !== null) {
+        setAvatarSeed(seed as AvatarSeed);
       }
+      if (session !== null) {
+        setUser(session.user);
+        setStatus('signedIn');
+        return;
+      }
+      setStatus('signedOut');
     };
 
     void restore();
@@ -226,65 +159,75 @@ export function AuthProvider({children}: {children: ReactNode}) {
     };
   }, []);
 
-  const signIn = useCallback(async () => {
-    if (!isMicrosoftConfigured) {
-      setError(
-        'Outlook sign-in is not configured yet. Add the Azure client id.',
-      );
-      return;
-    }
-    if (request === null || discovery === null) {
-      return;
-    }
+  const clearError = useCallback(() => setError(null), []);
 
+  const signUpWithEmail = useCallback(
+    async (input: {name: string; email: string; password: string}) => {
+      setError(null);
+      setBusy(true);
+      try {
+        await register(input);
+        return true;
+      } catch (caught) {
+        setError(
+          caught instanceof ApiError
+            ? caught.message
+            : 'Something went wrong. Try again.',
+        );
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
+
+  const runToSession = useCallback(
+    async (attempt: () => Promise<Session>): Promise<boolean> => {
+      setError(null);
+      setBusy(true);
+      try {
+        await adopt(await attempt());
+        return true;
+      } catch (caught) {
+        setError(
+          caught instanceof ApiError
+            ? caught.message
+            : 'Something went wrong. Try again.',
+        );
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [adopt],
+  );
+
+  const verifyEmailCode = useCallback(
+    (input: {email: string; code: string}) =>
+      runToSession(() => verifyEmail(input)),
+    [runToSession],
+  );
+
+  const signInWithEmail = useCallback(
+    (input: {email: string; password: string}) => runToSession(() => login(input)),
+    [runToSession],
+  );
+
+  const resendCode = useCallback(async (email: string): Promise<boolean> => {
     setError(null);
-    setBusy(true);
     try {
-      const result = await promptAsync();
-      if (result.type === 'cancel' || result.type === 'dismiss') {
-        return;
-      }
-      if (result.type !== 'success') {
-        setError('Microsoft did not return an account. Try again.');
-        return;
-      }
-
-      const tokens = await exchangeCodeAsync(
-        {
-          clientId: MICROSOFT_CLIENT_ID,
-          code: result.params.code!,
-          redirectUri,
-          extraParams: {code_verifier: request.codeVerifier ?? ''},
-        },
-        discovery,
-      );
-
-      const profile =
-        tokens.accessToken === undefined
-          ? null
-          : await fetchProfile(tokens.accessToken);
-      if (profile === null) {
-        setError('Could not read your Microsoft profile. Try again.');
-        return;
-      }
-
-      // The gate. A personal Outlook account or another university's address
-      // gets this far and no further — and the server checks again, because
-      // this one runs on a device the user controls.
-      if (!isUkimEmail(profile.email)) {
-        setError(UKIM_REJECTION);
-        return;
-      }
-
-      await store(profile);
-    } catch {
+      await resendVerificationCode(email);
+      return true;
+    } catch (caught) {
       setError(
-        "Couldn't reach Microsoft. Check your connection and try again.",
+        caught instanceof ApiError
+          ? caught.message
+          : 'Could not send a new code. Try again.',
       );
-    } finally {
-      setBusy(false);
+      return false;
     }
-  }, [request, discovery, promptAsync, redirectUri, store]);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -293,36 +236,29 @@ export function AuthProvider({children}: {children: ReactNode}) {
       avatarSeed,
       error,
       busy,
-      ready: request !== null && discovery !== null,
 
       chooseAvatar: async seed => {
         setAvatarSeed(seed);
-        if (user !== null) {
-          await persist({user, avatarSeed: seed});
-        }
+        await SecureStore.setItemAsync(AVATAR_KEY, seed).catch(() => {});
       },
 
-      signIn,
-      canUseTestSignIn,
-
-      signInAsTestStudent: async () => {
-        if (!canUseTestSignIn) {
-          return;
-        }
-        setError(null);
-        await store(TEST_STUDENT);
-      },
+      signUpWithEmail,
+      verifyEmailCode,
+      resendCode,
+      signInWithEmail,
+      clearError,
 
       signOut: async () => {
-        try {
-          await SecureStore.deleteItemAsync(STORAGE_KEY);
-        } catch {
-          // Nothing stored, or the keychain refused; sign out locally anyway.
-        }
-        setUser(null);
-        setAvatarSeed(null);
+        // Tell the server first — after clearing, the token to revoke is gone.
+        await revokeSession(false);
+        await forget();
         setError(null);
-        setStatus('signedOut');
+      },
+
+      signOutEverywhere: async () => {
+        await revokeSession(true);
+        await forget();
+        setError(null);
       },
     }),
     [
@@ -331,10 +267,12 @@ export function AuthProvider({children}: {children: ReactNode}) {
       avatarSeed,
       error,
       busy,
-      request,
-      discovery,
-      signIn,
-      persist,
+      signUpWithEmail,
+      verifyEmailCode,
+      resendCode,
+      signInWithEmail,
+      clearError,
+      forget,
     ],
   );
 

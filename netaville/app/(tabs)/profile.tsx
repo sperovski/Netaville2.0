@@ -1,15 +1,15 @@
-import {useState} from 'react';
-import {Pressable, StyleSheet, Switch, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useRouter} from 'expo-router';
 import {
   Bell,
+  Check,
   FileText,
   GraduationCap,
   Info,
   LockKeyhole,
   LogOut,
   Pencil,
-  Trophy,
+  Smartphone,
   Users,
 } from 'lucide-react-native';
 import {AvatarRing} from '@/components/AvatarRing';
@@ -22,11 +22,9 @@ import {useLoyalty} from '@/context/loyalty';
 import {nextTierFor, tierFor} from '@/data/loyalty';
 import {colors, fonts, icon, radii, spacing, type as typography} from '@/theme';
 
-const languages = ['EN', 'МК', 'SQ'] as const;
-
 export default function ProfileScreen() {
   const router = useRouter();
-  const {user, avatarSeed, signOut} = useAuth();
+  const {user, avatarSeed, signOut, signOutEverywhere} = useAuth();
   const {
     lifetimeStamps,
     coffeesRedeemed,
@@ -34,7 +32,6 @@ export default function ProfileScreen() {
     friends,
     notifications,
     isStudent,
-    setStudent,
   } = useLoyalty();
   const tier = tierFor(lifetimeStamps);
   const nextTier = nextTierFor(lifetimeStamps);
@@ -42,9 +39,6 @@ export default function ProfileScreen() {
     nextTier === null
       ? 1
       : (lifetimeStamps - tier.threshold) / (nextTier.threshold - tier.threshold);
-
-  const [language, setLanguage] = useState<string>(languages[0]);
-  const [onLeaderboard, setOnLeaderboard] = useState(true);
 
   return (
     <Screen scroll>
@@ -83,7 +77,7 @@ export default function ProfileScreen() {
           stats={[
             {label: 'Stamps', value: String(lifetimeStamps), tint: colors.brandBlue},
             {label: 'Redeemed', value: String(coffeesRedeemed), tint: colors.coral},
-            {label: 'Rank', value: `#${rank}`, tint: colors.cyan},
+            {label: 'Rank', value: rank === null ? '—' : `#${rank}`, tint: colors.cyan},
           ]}
         />
       </View>
@@ -113,56 +107,27 @@ export default function ProfileScreen() {
         <View style={styles.toggleRow}>
           <GraduationCap size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
           <View style={styles.toggleBody}>
-            <Text style={styles.toggleLabel}>Verified student</Text>
-            <Text style={styles.toggleHint}>Unlocks student prices on the menu</Text>
+            <Text style={styles.toggleLabel}>
+              {isStudent ? 'Verified student' : 'Not a student account'}
+            </Text>
+            <Text style={styles.toggleHint}>
+              {isStudent
+                ? 'Student prices show on the menu automatically.'
+                : 'Sign up with a UKIM email to unlock student prices.'}
+            </Text>
           </View>
-          <Switch
-            value={isStudent}
-            onValueChange={setStudent}
-            trackColor={{false: colors.divider, true: colors.brandBlue}}
-            thumbColor={colors.surface}
-            ios_backgroundColor={colors.divider}
-          />
+          {isStudent ? (
+            <View style={styles.verifiedBadge}>
+              <Check size={15} strokeWidth={2.4} color={colors.textOnBrand} />
+            </View>
+          ) : null}
         </View>
       </View>
 
-      <View style={styles.section}>
-        <SectionLabel>Language</SectionLabel>
-        <View style={styles.languages}>
-          {languages.map(candidate => {
-            const active = candidate === language;
-            return (
-              <Pressable
-                key={candidate}
-                accessibilityRole="button"
-                onPress={() => setLanguage(candidate)}
-                style={({pressed}) => [
-                  styles.language,
-                  active ? styles.languageActive : null,
-                  pressed ? styles.pressed : null,
-                ]}>
-                <Text style={[styles.languageText, active ? styles.languageTextActive : null]}>
-                  {candidate}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.toggleRow}>
-          <Trophy size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />
-          <Text style={styles.toggleLabel}>Show me on leaderboard</Text>
-          <Switch
-            value={onLeaderboard}
-            onValueChange={setOnLeaderboard}
-            trackColor={{false: colors.divider, true: colors.brandBlue}}
-            thumbColor={colors.surface}
-            ios_backgroundColor={colors.divider}
-          />
-        </View>
-      </View>
+      {/* The language picker and the "show me on leaderboard" switch used to
+          sit here. Both only moved local state and changed nothing, which is a
+          worse thing to ship than their absence. They come back when there is
+          translation to switch to and a column to store the preference in. */}
 
       <View style={styles.section}>
         <SectionLabel>App &amp; legal</SectionLabel>
@@ -174,10 +139,12 @@ export default function ProfileScreen() {
         <ListRow
           icon={<LockKeyhole size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />}
           label="Privacy & data"
+          onPress={() => router.push('/legal?doc=privacy')}
         />
         <ListRow
           icon={<FileText size={20} strokeWidth={icon.strokeWidth} color={colors.brandBlue} />}
           label="Terms"
+          onPress={() => router.push('/legal?doc=terms')}
         />
       </View>
 
@@ -188,6 +155,15 @@ export default function ProfileScreen() {
           style={({pressed}) => [styles.signOut, pressed ? styles.pressed : null]}>
           <LogOut size={19} strokeWidth={icon.strokeWidth} color={colors.danger} />
           <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+        {/* What to reach for when a phone goes missing: it revokes every
+            refresh token on the account, not just this device's. */}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void signOutEverywhere()}
+          style={({pressed}) => [styles.signOut, pressed ? styles.pressed : null]}>
+          <Smartphone size={19} strokeWidth={icon.strokeWidth} color={colors.textMuted} />
+          <Text style={styles.signOutAllText}>Sign out on all devices</Text>
         </Pressable>
       </View>
     </Screen>
@@ -241,25 +217,6 @@ const styles = StyleSheet.create({
   },
   stats: {paddingHorizontal: spacing.xl, paddingBottom: spacing.xl},
   section: {paddingHorizontal: spacing.xl, gap: spacing.md, paddingBottom: spacing.xl},
-  languages: {flexDirection: 'row', gap: spacing.sm},
-  language: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radii.chip,
-    backgroundColor: colors.blueTintBg,
-    borderWidth: 1,
-    borderColor: colors.blueTintBorder,
-  },
-  languageActive: {
-    backgroundColor: colors.brandBlue,
-    borderColor: colors.brandBlue,
-  },
-  languageText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: colors.brandBlue,
-  },
-  languageTextActive: {color: colors.textOnBrand},
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -283,6 +240,14 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: colors.textMuted,
   },
+  verifiedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: radii.iconButton,
+    backgroundColor: colors.brandBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   signOut: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,6 +259,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 15,
     color: colors.danger,
+  },
+  signOutAllText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.textMuted,
   },
   pressed: {opacity: 0.75},
 });

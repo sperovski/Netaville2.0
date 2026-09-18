@@ -14,7 +14,7 @@ export async function PATCH(request: Request, {params}: Params) {
   }
 
   const {id} = await params;
-  const body = (await request.json()) as {
+  const body = (await request.json().catch(() => ({}))) as {
     name?: string;
     location?: string;
     theme?: string;

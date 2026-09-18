@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     return gate.response;
   }
 
-  const body = (await request.json()) as {name?: string; location?: string};
+  const body = (await request.json().catch(() => ({}))) as {name?: string; location?: string};
   const name = (body.name ?? '').trim();
   if (name.length === 0) {
     return NextResponse.json({error: 'Give the screen a name.'}, {status: 400});

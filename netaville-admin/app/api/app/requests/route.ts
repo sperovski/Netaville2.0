@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
 import {createRequest, logActivity} from '@/lib/store';
-import {requireStudent} from '@/lib/student';
+import {requireAppUser} from '@/lib/student';
 import {
   DIETARY_OPTIONS,
   type Dietary,
@@ -58,12 +58,12 @@ function readSlot(value: unknown): {date: string; startTime: string; endTime: st
 
 /** A student asking for an event. It lands in the panel's Requests queue. */
 export async function POST(request: Request) {
-  const gate = await requireStudent(request);
+  const gate = await requireAppUser(request);
   if ('response' in gate) {
     return gate.response;
   }
 
-  const body = (await request.json()) as Body;
+  const body = (await request.json().catch(() => ({}))) as Body;
 
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   if (title.length === 0) {
