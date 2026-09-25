@@ -1,124 +1,25 @@
-# Netaville
-
-<p align="center">
-  <img src="Netaville.png" alt="Netaville logo" width="220" />
-</p>
-
-<p align="center">
-  <strong>Campus social app for coffee lovers, events, rewards, and community moments.</strong>
-</p>
-
-Netaville brings together the student experience in one polished mobile app: discover what is happening, request events, keep up with friends, track achievements, and stay connected to campus life.
-
-## Highlights
-
-- Event discovery and calendar views
-- Friend activity and social engagement
-- Event request flow for students and staff
-- Reward progression with bronze, gold, and platinum ranks
-- Clean mobile-first experience built with Expo + React Native
-- Admin dashboard for managing displays, events, and content
-
-## Screens and experience
-
-### Mobile app
-
-The main app lives in `netaville/` and is built around a campus lifestyle experience.
-
-- Home and onboarding flow
-- Authentication and verification screens
-- Event request and RSVP journeys
-- Friends, notifications, and profile experiences
-- Calendar and activity discovery
-- About, legal, and support information
-
-### Admin panel
-
-The staff experience lives in `netaville-admin/` and supports the operational side of Netaville:
-
-- Event approvals and moderation
-- TV display management and playlists
-- Screen pairing and public signage workflow
-- Shared schema and data model for app + admin use
-
-## Screenshots
-
-<p align="center">
-  <img src="bronze.png" alt="Bronze rank" width="180" />
-  <img src="gold.png" alt="Gold rank" width="180" />
-  <img src="platinum.png" alt="Platinum rank" width="180" />
-</p>
-
-These achievement visuals reflect the reward and progression system in the app.
-
-## Tech stack
-
-- React Native + Expo
-- TypeScript
-- Expo Router
-- React Navigation
-- Tailwind-style design system for the admin app
-- Postgres-ready admin backend
-
-## Project structure
-
-```text
-Netaville2.0/
-├── netaville/             # Expo mobile app
-│   ├── app/               # screens/routes
-│   ├── src/               # shared app logic and theme
-│   └── package.json
-├── netaville-admin/       # admin dashboard
-│   ├── app/               # Next.js admin pages
-│   ├── db/                # database setup and schema
-│   └── package.json
-├── Netaville.png          # project logo
-├── bronze.png             # rank asset
-├── gold.png               # rank asset
-├── platinum.png           # rank asset
-├── netaville-intro.html   # animated intro concept
-├── README.md
-├── package.json           # root tooling
-└── ...
-```
-
-## Quick start
-
-### Mobile app
-
-```bash
-cd netaville
-npm install
-npm start
-```
-
-Then open in Android/iOS simulator or Expo Go.
-
-### Admin app
-
-```bash
-cd netaville-admin
-npm install
-npm run dev
-```
-
-## Development notes
-
-- The mobile app is designed for campus engagement and event-driven community interaction.
-- The admin panel is intended to manage the system behind the scenes.
-- The project is structured as a monorepo so the app and staff tooling evolve together.
-
-## Why it feels good
-
-Netaville is designed to feel clean, modern, and easy to use:
-
-- Bold but readable visual language
-- Friendly community-first interactions
-- Strong hierarchy between content, actions, and rewards
-- Smooth app flow from login to discovery to participation
-
----
-
-<p align="center">
-  <em>Built for campus community, events, and everyday connection.</em>
-</p>
+<img width="368" height="837" alt="Screenshot 2026-09-25 at 10 52 04" src="https://github.com/user-attachments/assets/84f90af8-1d23-462f-9d8e-a4bd3a90187e" />
+<img width="330" height="770" alt="Screenshot 2026-09-25 at 11 03 32" src="https://github.com/user-attachments/assets/a7a7523c-db60-4f07-aef7-f9a9a6133605" />
+<img width="372" height="845" alt="Screenshot 2026-09-25 at 11 13 34" src="https://github.com/user-attachments/assets/2a4c168a-2818-45c4-9730-b85701be9bab" />
+<img width="378" height="851" alt="Screenshot 2026-09-25 at 11 12 55" src="https://github.com/user-attachments/assets/c82c055d-9e7d-4678-87be-c7bad64a4e80" />
+<img width="377" height="844" alt="Screenshot 2026-09-25 at 11 13 03" src="https://github.com/user-attachments/assets/a40765a5-c093-4dc2-a152-77c076fba71b" />
+<img width="365" height="854" alt="Screenshot 2026-09-25 at 11 15 01" src="https://github.com/user-attachments/assets/829300ec-9527-4828-95a5-c19cc257b911" />
+<img width="370" height="853" alt="Screenshot 2026-09-25 at 11 15 45" src="https://github.com/user-attachments/assets/52a95d15-45fe-48df-9c11-fa90fa0623ab" />
+<img width="372" height="851" alt="Screenshot 2026-09-25 at 11 16 28" src="https://github.com/user-attachments/assets/eb70cb9b-fc0d-4dcc-af85-8b10d5308e82" />
+<img width="373" height="860" alt="Screenshot 2026-09-25 at 11 16 19" src="https://github.com/user-attachments/assets/95cd98c4-9df4-4697-a02e-ea17d057730f" />
+<img width="386" height="855" alt="Screenshot 2026-09-25 at 11 15 37" src="https://github.com/user-attachments/assets/120453d4-1afa-43d9-99ea-e5c68d1740b5" />
+<img width="375" height="854" alt="Screenshot 2026-09-25 at 11 14 52" src="https://github.com/user-attachments/assets/d85b3209-d880-45a8-83da-60140ccef9b3" />
+<img width="372" height="853" alt="Screenshot 2026-09-25 at 11 14 35" src="https://github.com/user-attachments/assets/baac02e2-bd4c-457c-b31e-10f7df831de5" />
+<img width="370" height="862" alt="Screenshot 2026-09-25 at 11 14 21" src="https://github.com/user-attachments/assets/0551d3f1-ef6b-42ae-8ac5-849c4b054669" />
+<img width="381" height="848" alt="Screenshot 2026-09-25 at 11 14 12" src="https://github.com/user-attachments/assets/c455b53f-b072-429b-a7a0-94a187ceac71" />
+<img width="382" height="859" alt="Screenshot 2026-09-25 at 11 15 29" src="https://github.com/user-attachments/assets/0e858744-5bc2-4e53-b6b2-3f3fc2a14358" />
+<img width="377" height="854" alt="Screenshot 2026-09-25 at 11 16 10" src="https://github.com/user-attachments/assets/e3a43e6c-2938-4902-96b1-7a9da7ec0475" />
+<img width="386" height="857" alt="Screenshot 2026-09-25 at 11 16 52" src="https://github.com/user-attachments/assets/a6d60dbe-5beb-495f-9276-75a933fcffd7" />
+<img width="360" height="858" alt="Screenshot 2026-09-25 at 11 16 44" src="https://github.com/user-attachments/assets/db2877a6-bd4b-490b-9f28-3c66dfa42137" />
+<img width="368" height="841" alt="Screenshot 2026-09-25 at 11 16 01" src="https://github.com/user-attachments/assets/601f6ad8-a144-4933-9f63-deeb268b1aee" />
+<img width="370" height="857" alt="Screenshot 2026-09-25 at 11 15 18" src="https://github.com/user-attachments/assets/9ec967f7-d4b6-47fe-aa4c-d43783d158ad" />
+<img width="371" height="858" alt="Screenshot 2026-09-25 at 11 14 05" src="https://github.com/user-attachments/assets/85991214-f4d5-41d3-a7ef-1bf9cfb1624c" />
+<img width="375" height="844" alt="Screenshot 2026-09-25 at 11 13 54" src="https://github.com/user-attachments/assets/ffa72d43-3122-4ba8-b904-d962842135cd" />
+<img width="372" height="864" alt="Screenshot 2026-09-25 at 11 15 09" src="https://github.com/user-attachments/assets/2e3b7af6-a249-4466-ac83-5f828718c4ef" />
+<img width="357" height="856" alt="Screenshot 2026-09-25 at 11 15 54" src="https://github.com/user-attachments/assets/c171699e-d66c-4ca1-b827-28bf685b3b89" />
+<img width="382" height="857" alt="Screenshot 2026-09-25 at 11 16 35" src="https://github.com/user-attachments/assets/7b56e5bb-82a5-4343-b30a-129faea09565" />
